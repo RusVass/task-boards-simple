@@ -19,7 +19,6 @@ logs/
 
 ### Environment
 .env
-.env.sample
 .env.local
 .env.development.local
 .env.test.local
