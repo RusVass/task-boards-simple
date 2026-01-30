@@ -1,73 +1,40 @@
-# Task Boards, Kanban
+# Task Management Boards
 
-Kanban board without authentication.
-Board has publicId and name.
-Columns are fixed, todo, in_progress, done.
-Card has title, description, column, order.
-Drag and drop updates column and order, and syncs with the backend.
+Test project for managing boards and cards without authentication.
 
 ## Tech stack
 
 Frontend
 React, TypeScript, hooks only.
-useContext plus useReducer as state manager.
-@dnd-kit for drag and drop.
-React Hook Form, Zod.
+State manager for data, useContext plus useReducer.
 Axios.
 SCSS Modules.
+HTML5 drag and drop.
 
 Backend
-Node.js, Express, TypeScript.
+Express.js, TypeScript.
 MongoDB, Mongoose.
-Zod validation.
-cors, helmet, compression.
 
 Quality
 ESLint, Prettier.
-Dockerfile for web and api.
-GitHub Actions for lint and test.
 
-## Monorepo structure
+## Project structure
 
 apps
-api, Express API
-web, React web app
+api-simple, Express API
+web-simple, React web app
 
 docker
 docker-compose.yml
 
-.github
-workflows, CI
+## Requirements covered
 
-## Architecture
-
-### Frontend
-
-Data flow
-UI dispatches action.
-Reducer updates state.
-API layer calls backend.
-UI renders from state.
-
-Core modules
-src state BoardContext.tsx
-src api boardsApi.ts
-src pages BoardPage.tsx
-src components Column, Card, CreateCardForm
-
-### Backend
-
-Routing
-Routes map to controllers.
-Controllers validate input.
-Services run business logic.
-Models handle DB.
-
-Core modules
-src modules boards
-src modules cards
-src config db connection
-src middlewares error handler
+- Create, update, and delete boards.
+- Each board has 3 columns, ToDo, In Progress, Done.
+- Load a board by ID.
+- Add, edit, and delete cards.
+- Drag and drop across columns and reordering within a column.
+- Anonymous access, no login.
 
 ## Data model
 
@@ -86,115 +53,38 @@ description string optional
 createdAt date
 updatedAt date
 
-Order rules
-Order starts from 0 per column.
-Client sends reorder items.
-Backend normalizes order to 0..n per column.
+Order
+Order starts at 0 in each column.
+Client sends items, backend normalizes the order.
 
 ## Environment
 
-API, apps api .env
-
+API, `apps/api-simple/.env`
 PORT=4000
 CORS_ORIGIN=http://localhost:5173
 MONGO_URI=your_mongo_uri
 
-Web, apps web .env
-
+Web, `apps/web-simple/.env`
 VITE_API_URL=http://localhost:4000/api
 
 ## Local run
 
-Install deps from root.
-
+Install deps from the repo root.
 npm install
 
 Start API.
-
-cd apps/api
+cd apps/api-simple
 npm run dev
 
 Start web.
-
-cd apps/web
+cd apps/web-simple
 npm run dev
 
-Open.
-
+Open
 http://localhost:5173
-
-## API
-
-Base url
-http://localhost:4000/api
-
-Boards
-
-Create board
-POST /boards
-body
-{
-  "name": "Board A"
-}
-response
-{
-  "publicId": "NZSACDLKHg",
-  "name": "Board A"
-}
-
-Get board with cards
-GET /boards/:publicId
-response
-{
-  "board": { "publicId": "NZSACDLKHg", "name": "Board A" },
-  "cards": []
-}
-
-Update board name
-PATCH /boards/:publicId
-body
-{
-  "name": "New name"
-}
-
-Delete board with cascade delete cards
-DELETE /boards/:publicId
-
-Cards
-
-Create card
-POST /boards/:publicId/cards
-body
-{
-  "title": "First task",
-  "description": "Details",
-  "column": "todo"
-}
-
-Update card
-PATCH /boards/:publicId/cards/:cardId
-body
-{
-  "title": "Updated",
-  "description": "Updated text"
-}
-
-Delete card
-DELETE /boards/:publicId/cards/:cardId
-
-Reorder cards
-PUT /boards/:publicId/cards/reorder
-body
-{
-  "items": [
-    { "cardId": "64f...", "column": "done" },
-    { "cardId": "64a...", "column": "done" }
-  ]
-}
 
 ## Docker
 
 Run Mongo plus api plus web.
-
 cd docker
 docker compose up --build

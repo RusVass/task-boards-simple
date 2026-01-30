@@ -1,0 +1,97 @@
+.card {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  border-color: #2563eb;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #475569;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-self: flex-end;
+}
+
+.content {
+  flex: 1;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+  background: #e2e8f0;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  border-color: #2563eb;
+  background: #dbe4f3;
+}
+
+.danger:hover {
+  border-color: #dc2626;
+}
+
+.editInput {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+}
+
+.editInput:focus {
+  border-color: #2563eb;
+}
+
+.editTextarea {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 74px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  resize: vertical;
+}
+
+.editTextarea:focus {
+  border-color: #2563eb;
+}
