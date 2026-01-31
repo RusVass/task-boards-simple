@@ -7,7 +7,7 @@ describe('board.schemas', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe('Board ID is required');
+      expect(result.error.issues[0]?.message).toBe('Field is required');
     }
   });
 
@@ -16,7 +16,7 @@ describe('board.schemas', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe('Board ID must be 24 hex chars');
+      expect(result.error.issues[0]?.message).toBe('Board ID must be 24 hex characters');
     }
   });
 
@@ -31,7 +31,7 @@ describe('board.schemas', () => {
 
     expect(longResult.success).toBe(false);
     if (!longResult.success) {
-      expect(longResult.error.issues[0]?.message).toBe('Max 60 chars');
+      expect(longResult.error.issues[0]?.message).toBe('Max 60 characters');
     }
 
     const parsed = boardNameSchema.parse('  Board  ');

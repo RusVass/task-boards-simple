@@ -4,13 +4,13 @@ import { getLoadBoardErrorMessage, validateBoardId, validateBoardName } from './
 describe('validateBoardName', () => {
   it('returns error for empty string', () => {
     const result = validateBoardName('');
-    expect(result.error).toBe('Board name is required');
+    expect(result.error).toBe('Field is required');
     expect(result.trimmed).toBe('');
   });
 
   it('returns error for whitespace only', () => {
     const result = validateBoardName('   ');
-    expect(result.error).toBe('Board name is required');
+    expect(result.error).toBe('Field is required');
     expect(result.trimmed).toBe('');
   });
 
@@ -24,13 +24,13 @@ describe('validateBoardName', () => {
 describe('validateBoardId', () => {
   it('returns error for empty string', () => {
     const result = validateBoardId('');
-    expect(result.error).toBe('Board id is required');
+    expect(result.error).toBe('Field is required');
     expect(result.trimmed).toBe('');
   });
 
   it('returns error for whitespace only', () => {
     const result = validateBoardId('   ');
-    expect(result.error).toBe('Board id is required');
+    expect(result.error).toBe('Field is required');
     expect(result.trimmed).toBe('');
   });
 

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitErrorHandler, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { boardIdSchema, boardNameSchema, normalizeString } from '../features/board/board.schemas';
 import { createBoard, getBoard } from '../shared/api/endpoints';
@@ -34,6 +34,10 @@ export const HomePage = (): JSX.Element => {
   const handleCreateSubmit: SubmitHandler<CreateBoardFormValues> = async (values) => {
     setCreateError(null);
     const normalizedName = normalizeString(values.name);
+    if (!normalizedName) {
+      setCreateError('Field is required');
+      return;
+    }
 
     try {
       const board = await createBoard(normalizedName);
@@ -44,14 +48,44 @@ export const HomePage = (): JSX.Element => {
     }
   };
 
+  const handleCreateInvalid: SubmitErrorHandler<CreateBoardFormValues> = (errors) => {
+    const message = errors.name?.message;
+    if (message) setCreateError(message);
+  };
+
   const handleLoadSubmit: SubmitHandler<LoadBoardFormValues> = async (values) => {
     setLoadError(null);
     const normalizedId = normalizeString(values.boardId);
+    if (!normalizedId) {
+      setLoadError('Field is required');
+      return;
+    }
     try {
       await getBoard(normalizedId);
-      navigate(`/boards/${normalizedId}`);
+    navigate(`/boards/${normalizedId}`);
     } catch (error: unknown) {
       setLoadError(getLoadBoardErrorMessage(error));
+    }
+  };
+
+  const handleLoadInvalid: SubmitErrorHandler<LoadBoardFormValues> = (errors) => {
+    const message = errors.boardId?.message;
+    if (message) setLoadError(message);
+  };
+
+  const handleCreateButtonClick = async (event: MouseEvent<HTMLButtonElement>) => {
+    const isValid = await createForm.trigger('name');
+    if (!isValid) {
+      event.preventDefault();
+      setCreateError('Field is required');
+    }
+  };
+
+  const handleLoadButtonClick = async (event: MouseEvent<HTMLButtonElement>) => {
+    const isValid = await loadForm.trigger('boardId');
+    if (!isValid) {
+      event.preventDefault();
+      setLoadError('Field is required');
     }
   };
 
@@ -65,11 +99,13 @@ export const HomePage = (): JSX.Element => {
     setLoadError(null);
   };
 
-  const handleCreateFormSubmit = createForm.handleSubmit(handleCreateSubmit);
-  const handleLoadFormSubmit = loadForm.handleSubmit(handleLoadSubmit);
+  const handleCreateFormSubmit = createForm.handleSubmit(handleCreateSubmit, handleCreateInvalid);
+  const handleLoadFormSubmit = loadForm.handleSubmit(handleLoadSubmit, handleLoadInvalid);
 
   const createValidationError = createForm.formState.errors.name?.message;
   const loadValidationError = loadForm.formState.errors.boardId?.message;
+  const createErrorMessage = createValidationError ?? createError;
+  const loadErrorMessage = loadValidationError ?? loadError;
 
   return (
     <div className="container">
@@ -85,12 +121,11 @@ export const HomePage = (): JSX.Element => {
               onFocus={handleCreateFocus}
               placeholder="Board name"
             />
-            <button className={s.button} type="submit">
+            <button className={s.button} type="submit" onClick={handleCreateButtonClick}>
               Create
             </button>
           </form>
-          {createValidationError ? <div className={s.error}>{createValidationError}</div> : null}
-          {createError ? <div className={s.error}>{createError}</div> : null}
+          {createErrorMessage ? <div className={s.error}>{createErrorMessage}</div> : null}
         </section>
 
         <section className={s.card}>
@@ -102,12 +137,11 @@ export const HomePage = (): JSX.Element => {
               onFocus={handleLoadFocus}
               placeholder="Paste board id"
             />
-            <button className={s.button} type="submit">
+            <button className={s.button} type="submit" onClick={handleLoadButtonClick}>
               Load
             </button>
           </form>
-          {loadValidationError ? <div className={s.error}>{loadValidationError}</div> : null}
-          {loadError ? <div className={s.error}>{loadError}</div> : null}
+          {loadErrorMessage ? <div className={s.error}>{loadErrorMessage}</div> : null}
         </section>
       </div>
     </div>
@@ -128,13 +162,13 @@ export function getLoadBoardErrorMessage(error: unknown): string {
 
 export function validateBoardName(input: string): { trimmed: string; error: string | null } {
   const trimmed = normalizeString(input);
-  if (!trimmed) return { trimmed, error: 'Board name is required' };
+  if (!trimmed) return { trimmed, error: 'Field is required' };
   return { trimmed, error: null };
 }
 
 export function validateBoardId(input: string): { trimmed: string; error: string | null } {
   const trimmed = normalizeString(input);
-  if (!trimmed) return { trimmed, error: 'Board id is required' };
+  if (!trimmed) return { trimmed, error: 'Field is required' };
   return { trimmed, error: null };
 }
 
