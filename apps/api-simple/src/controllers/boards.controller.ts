@@ -1,47 +1,35 @@
 import type { Request, Response } from 'express';
-import mongoose from 'mongoose';
 import { Board } from '../models/Board';
 import { Card } from '../models/Card';
+import { createBoardSchema, updateBoardSchema } from '../validation/boards.schema';
 import { HttpError } from '../utils/httpError';
-
-const requireString = (value: unknown, field: string) => {
-  if (typeof value !== 'string') throw new HttpError(400, `${field} must be a string`);
-  const v = value.trim();
-  if (!v) throw new HttpError(400, `${field} is required`);
-  return v;
-};
-
-const requireObjectId = (value: string, field: string) => {
-  if (!mongoose.isValidObjectId(value)) throw new HttpError(400, `${field} is invalid`);
-  return value;
-};
+import { createUniqueBoardPublicId, findBoardByPublicId, parseBoardPublicId } from '../utils/boardLookup';
 
 export const createBoard = async (req: Request, res: Response) => {
-  const name = requireString(req.body?.name, 'name');
+  const data = createBoardSchema.parse(req.body);
 
-  const board = await Board.create({ name });
+  const publicId = await createUniqueBoardPublicId();
+  const board = await Board.create({ publicId, name: data.name });
 
   res.status(201).json({
-    publicId: board._id,
+    publicId: board.publicId,
     name: board.name,
   });
 };
 
 export const getBoard = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
+  const boardId = parseBoardPublicId(req.params.boardId);
+  const board = await findBoardByPublicId(boardId);
 
-  const board = await Board.findById(boardId).lean();
-  if (!board) throw new HttpError(404, 'Board not found');
-
-  const cards = await Card.find({ boardId })
+  const cards = await Card.find({ boardId: board._id })
     .sort({ column: 1, order: 1, _id: 1 })
     .lean();
 
   res.json({
-    board: { publicId: board._id, name: board.name },
+    board: { publicId: board.publicId, name: board.name },
     cards: cards.map((c) => ({
       _id: c._id,
-      boardId: c.boardId,
+      boardId: board.publicId,
       column: c.column,
       order: c.order,
       title: c.title,
@@ -53,27 +41,27 @@ export const getBoard = async (req: Request, res: Response) => {
 };
 
 export const updateBoard = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
-  const name = requireString(req.body?.name, 'name');
+  const boardId = parseBoardPublicId(req.params.boardId);
+  const data = updateBoardSchema.parse(req.body);
 
-  const board = await Board.findByIdAndUpdate(boardId, { name }, { new: true }).lean();
+  const board = await Board.findOneAndUpdate(
+    { publicId: boardId },
+    { name: data.name },
+    { new: true },
+  ).lean();
   if (!board) throw new HttpError(404, 'Board not found');
 
-  res.json({ publicId: board._id, name: board.name });
+  res.json({ publicId: board.publicId, name: board.name });
 };
 
 export const deleteBoard = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
+  const boardId = parseBoardPublicId(req.params.boardId);
 
-  const deleted = await Board.findByIdAndDelete(boardId).lean();
+  const deleted = await Board.findOneAndDelete({ publicId: boardId }).lean();
   if (!deleted) throw new HttpError(404, 'Board not found');
 
-  await Card.deleteMany({ boardId });
+  await Card.deleteMany({ boardId: deleted._id });
 
   res.status(204).send();
 };
 
-export const boardsValidation = {
-  requireObjectId,
-  requireString,
-};

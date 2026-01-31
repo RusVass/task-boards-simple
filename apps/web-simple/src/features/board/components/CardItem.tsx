@@ -1,8 +1,11 @@
-import { useState, type ChangeEvent, type DragEvent } from 'react';
+import { useState, type DragEvent } from 'react';
 import { useParams } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import type { Card } from '../board.types';
 import { useBoardContext } from '../board.context';
 import { deleteCard, updateCard } from '../board.actions';
+import { cardSchema, normalizeString } from '../board.schemas';
 import s from './CardItem.module.scss';
 
 interface CardItemProps {
@@ -23,30 +26,35 @@ export const CardItem = ({
   const boardId = state.boardId ?? routeBoardId;
 
   const [isEdit, setIsEdit] = useState(false);
-  const [title, setTitle] = useState(card.title);
-  const [description, setDescription] = useState(card.description);
+
+  const editForm = useForm<CardFormValues>({
+    resolver: zodResolver(cardSchema),
+    mode: 'onSubmit',
+    defaultValues: { title: card.title, description: card.description ?? '' },
+  });
+
+  const titleField = editForm.register('title');
+  const descriptionField = editForm.register('description');
 
   const handleEdit = () => {
+    editForm.reset({ title: card.title, description: card.description ?? '' });
+    editForm.clearErrors();
     setIsEdit(true);
   };
 
   const handleCancel = () => {
+    editForm.reset({ title: card.title, description: card.description ?? '' });
+    editForm.clearErrors();
     setIsEdit(false);
-    setTitle(card.title);
-    setDescription(card.description);
   };
 
-  const handleTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setTitle(event.target.value);
-  };
-
-  const handleDescriptionChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setDescription(event.target.value);
-  };
-
-  const handleSave = async () => {
+  const handleSaveSubmit: SubmitHandler<CardFormValues> = async (values) => {
     if (!boardId) return;
-    await updateCard(dispatch, boardId, card.id, { title, description });
+
+    await updateCard(dispatch, boardId, card.id, {
+      title: normalizeString(values.title),
+      description: normalizeString(values.description ?? ''),
+    });
     setIsEdit(false);
   };
 
@@ -69,20 +77,23 @@ export const CardItem = ({
     onDragOverCard(event);
   };
 
+  const handleEditFormSubmit = editForm.handleSubmit(handleSaveSubmit);
+  const titleError = editForm.formState.errors.title?.message;
+  const descriptionError = editForm.formState.errors.description?.message;
+  const isSubmitting = editForm.formState.isSubmitting;
+
   if (isEdit) {
     return (
-      <div className={s.card}>
+      <form className={s.card} onSubmit={handleEditFormSubmit}>
         <div className={s.top}>
           <div className={s.content}>
-            <input className={s.editInput} value={title} onChange={handleTitleChange} />
-            <textarea
-              className={s.editTextarea}
-              value={description}
-              onChange={handleDescriptionChange}
-            />
+            <input {...titleField} className={s.editInput} />
+            {titleError ? <div className={s.error}>{titleError}</div> : null}
+            <textarea {...descriptionField} className={s.editTextarea} />
+            {descriptionError ? <div className={s.error}>{descriptionError}</div> : null}
           </div>
           <div className={s.actions}>
-            <button className={s.iconBtn} type="button" onClick={handleSave} title="Save">
+            <button className={s.iconBtn} type="submit" disabled={isSubmitting} title="Save">
               ✓
             </button>
             <button className={s.iconBtn} type="button" onClick={handleCancel} title="Cancel">
@@ -90,7 +101,7 @@ export const CardItem = ({
             </button>
           </div>
         </div>
-      </div>
+      </form>
     );
   }
 
@@ -120,3 +131,8 @@ export const CardItem = ({
     </div>
   );
 };
+
+interface CardFormValues {
+  title: string;
+  description?: string;
+}

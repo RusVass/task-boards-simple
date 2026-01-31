@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
+import { ZodError } from 'zod';
 import { createCard, reorderCards } from './cards.controller';
 import { Board } from '../models/Board';
 import { Card } from '../models/Card';
@@ -26,7 +27,7 @@ const createMockResponse = (): MockResponse => {
   };
 };
 
-type BoardLean = { _id: string; name: string };
+type BoardLean = { _id: string; publicId: string; name: string };
 type CardLean = { order: number };
 type CreatedCard = {
   _id: string;
@@ -39,34 +40,35 @@ type CreatedCard = {
   updatedAt: Date;
 };
 
-const validBoardId = '507f1f77bcf86cd799439011';
+const validBoardId = 'a1b2c3d4e5f6a7b8c9d0e1f2';
+const boardObjectId = '507f1f77bcf86cd799439011';
 const createdAt = new Date('2024-01-01T00:00:00.000Z');
 const updatedAt = new Date('2024-01-01T00:00:00.000Z');
 
-let originalFindById: typeof Board.findById;
-let originalFindOne: typeof Card.findOne;
+let originalBoardFindOne: typeof Board.findOne;
+let originalCardFindOne: typeof Card.findOne;
 let originalCreate: typeof Card.create;
 let originalUpdateOne: typeof Card.updateOne;
 
 beforeEach(() => {
-  originalFindById = Board.findById.bind(Board);
-  originalFindOne = Card.findOne.bind(Card);
+  originalBoardFindOne = Board.findOne.bind(Board);
+  originalCardFindOne = Card.findOne.bind(Card);
   originalCreate = Card.create.bind(Card);
   originalUpdateOne = Card.updateOne.bind(Card);
 });
 
 afterEach(() => {
-  Board.findById = originalFindById;
-  Card.findOne = originalFindOne;
+  Board.findOne = originalBoardFindOne;
+  Card.findOne = originalCardFindOne;
   Card.create = originalCreate;
   Card.updateOne = originalUpdateOne;
 });
 
-const mockFindById = (result: BoardLean | null) => {
+const mockFindOneBoard = (result: BoardLean | null) => {
   const fn = () => ({
     lean: async () => result,
   });
-  Board.findById = fn as unknown as typeof Board.findById;
+  Board.findOne = fn as unknown as typeof Board.findOne;
 };
 
 const mockFindOne = (result: CardLean | null) => {
@@ -112,7 +114,7 @@ test('createCard throws on invalid boardId', async () => {
 });
 
 test('createCard throws when board not found', async () => {
-  mockFindById(null);
+  mockFindOneBoard(null);
 
   const req = { params: { boardId: validBoardId }, body: { title: 'Card', column: 'todo' } };
   const res = createMockResponse();
@@ -129,29 +131,24 @@ test('createCard throws when board not found', async () => {
 });
 
 test('createCard throws on invalid column', async () => {
-  mockFindById({ _id: validBoardId, name: 'Board' });
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
 
   const req = { params: { boardId: validBoardId }, body: { title: 'Card', column: 'nope' } };
   const res = createMockResponse();
 
   await assert.rejects(
     () => createCard(req as never, res as never),
-    (err: unknown) => {
-      assert.ok(err instanceof HttpError);
-      assert.equal(err.status, 400);
-      assert.equal(err.message, 'column must be todo, in_progress, or done');
-      return true;
-    },
+    (err: unknown) => err instanceof ZodError,
   );
 });
 
 test('createCard returns created card payload', async () => {
-  mockFindById({ _id: validBoardId, name: 'Board' });
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
   mockFindOne({ order: 2 });
 
   const createdCard: CreatedCard = {
     _id: '507f1f77bcf86cd799439012',
-    boardId: validBoardId,
+    boardId: boardObjectId,
     column: 'todo',
     order: 3,
     title: 'Card',
@@ -170,7 +167,7 @@ test('createCard returns created card payload', async () => {
   assert.equal(res.statusCode, 201);
   assert.deepEqual(res.body, {
     _id: createdCard._id,
-    boardId: createdCard.boardId,
+    boardId: validBoardId,
     column: createdCard.column,
     order: createdCard.order,
     title: createdCard.title,
@@ -181,21 +178,18 @@ test('createCard returns created card payload', async () => {
 });
 
 test('reorderCards throws when items is not an array', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
   const req = { params: { boardId: validBoardId }, body: { items: 'nope' } };
   const res = createMockResponse();
 
   await assert.rejects(
     () => reorderCards(req as never, res as never),
-    (err: unknown) => {
-      assert.ok(err instanceof HttpError);
-      assert.equal(err.status, 400);
-      assert.equal(err.message, 'items must be an array');
-      return true;
-    },
+    (err: unknown) => err instanceof ZodError,
   );
 });
 
 test('reorderCards throws on invalid column', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
   const req = {
     params: { boardId: validBoardId },
     body: { items: [{ cardId: '507f1f77bcf86cd799439012', column: 'nope' }] },
@@ -204,16 +198,12 @@ test('reorderCards throws on invalid column', async () => {
 
   await assert.rejects(
     () => reorderCards(req as never, res as never),
-    (err: unknown) => {
-      assert.ok(err instanceof HttpError);
-      assert.equal(err.status, 400);
-      assert.equal(err.message, 'column must be todo, in_progress, or done');
-      return true;
-    },
+    (err: unknown) => err instanceof ZodError,
   );
 });
 
 test('reorderCards throws on invalid cardId', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
   const req = {
     params: { boardId: validBoardId },
     body: { items: [{ cardId: 'bad', column: 'todo' }] },
@@ -232,6 +222,7 @@ test('reorderCards throws on invalid cardId', async () => {
 });
 
 test('reorderCards updates cards in order', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
   const calls: UpdateOneCall[] = [];
   mockUpdateOne(calls);
 
@@ -250,11 +241,11 @@ test('reorderCards updates cards in order', async () => {
 
   assert.deepEqual(calls, [
     {
-      filter: { _id: '507f1f77bcf86cd799439012', boardId: validBoardId },
+      filter: { _id: '507f1f77bcf86cd799439012', boardId: boardObjectId },
       update: { column: 'todo', order: 0 },
     },
     {
-      filter: { _id: '507f1f77bcf86cd799439013', boardId: validBoardId },
+      filter: { _id: '507f1f77bcf86cd799439013', boardId: boardObjectId },
       update: { column: 'done', order: 1 },
     },
   ]);

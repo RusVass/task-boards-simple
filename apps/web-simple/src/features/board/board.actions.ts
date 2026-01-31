@@ -70,13 +70,13 @@ interface UpdateCardInput {
 export const createCard = async (
   dispatch: Dispatch<BoardAction>,
   boardId: string,
-  input: { title: string; description: string },
+  input: { title: string; description: string; column: ColumnId },
 ): Promise<void> => {
   try {
     const { data } = await http.post<CardApiResponse>(`/api/boards/${boardId}/cards`, {
       title: input.title,
       description: input.description,
-      column: 'todo',
+      column: input.column,
     });
 
     dispatch({

@@ -11,19 +11,18 @@ export const COLUMNS: ColumnMeta[] = [
   { key: 'done', title: 'Done' },
 ];
 
-export function getCardsByColumn(cards: Card[], column: ColumnId): Card[] {
-  return cards
+export const getCardsByColumn = (cards: Card[], column: ColumnId): Card[] =>
+  cards
     .filter((card) => card.column === column)
     .slice()
     .sort((a, b) => a.order - b.order);
-}
 
-export function reorderCards(
+export const reorderCards = (
   cards: Card[],
   cardId: string,
   toColumn: ColumnId,
   toIndex: number,
-): Card[] {
+): Card[] => {
   const movingCard = cards.find((card) => card.id === cardId);
   if (!movingCard) return cards;
 
@@ -50,4 +49,4 @@ export function reorderCards(
   });
 
   return nextCards;
-}
+};

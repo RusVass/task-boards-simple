@@ -1,15 +1,13 @@
 import type { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { Board } from '../models/Board';
 import { Card } from '../models/Card';
+import {
+  createCardSchema,
+  reorderCardsSchema,
+  updateCardSchema,
+} from '../validation/cards.schema';
 import { HttpError } from '../utils/httpError';
-
-const requireString = (value: unknown, field: string) => {
-  if (typeof value !== 'string') throw new HttpError(400, `${field} must be a string`);
-  const v = value.trim();
-  if (!v) throw new HttpError(400, `${field} is required`);
-  return v;
-};
+import { findBoardByPublicId, parseBoardPublicId } from '../utils/boardLookup';
 
 const requireObjectId = (value: string, field: string) => {
   if (!mongoose.isValidObjectId(value)) throw new HttpError(400, `${field} is invalid`);
@@ -17,27 +15,28 @@ const requireObjectId = (value: string, field: string) => {
 };
 
 export const createCard = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
+  const boardId = parseBoardPublicId(req.params.boardId);
+  const board = await findBoardByPublicId(boardId);
 
-  const board = await Board.findById(boardId).lean();
-  if (!board) throw new HttpError(404, 'Board not found');
+  const data = createCardSchema.parse(req.body);
+  const description = data.description ?? '';
 
-  const title = requireString(req.body?.title, 'title');
-  const description = typeof req.body?.description === 'string' ? req.body.description : '';
-  const column = req.body?.column;
-
-  if (column !== 'todo' && column !== 'in_progress' && column !== 'done') {
-    throw new HttpError(400, 'column must be todo, in_progress, or done');
-  }
-
-  const last = await Card.findOne({ boardId, column }).sort({ order: -1 }).lean();
+  const last = await Card.findOne({ boardId: board._id, column: data.column })
+    .sort({ order: -1 })
+    .lean();
   const order = last ? last.order + 1 : 0;
 
-  const card = await Card.create({ boardId, column, order, title, description });
+  const card = await Card.create({
+    boardId: board._id,
+    column: data.column,
+    order,
+    title: data.title,
+    description,
+  });
 
   res.status(201).json({
     _id: card._id,
-    boardId: card.boardId,
+    boardId: board.publicId,
     column: card.column,
     order: card.order,
     title: card.title,
@@ -48,15 +47,18 @@ export const createCard = async (req: Request, res: Response) => {
 };
 
 export const updateCard = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
+  const boardId = parseBoardPublicId(req.params.boardId);
   const cardId = requireObjectId(req.params.cardId, 'cardId');
+  const board = await findBoardByPublicId(boardId);
 
-  const title = requireString(req.body?.title, 'title');
-  const description = typeof req.body?.description === 'string' ? req.body.description : '';
+  const data = updateCardSchema.parse(req.body);
+  const updateData: { title?: string; description?: string } = {};
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description;
 
   const card = await Card.findOneAndUpdate(
-    { _id: cardId, boardId },
-    { title, description },
+    { _id: cardId, boardId: board._id },
+    updateData,
     { new: true },
   ).lean();
 
@@ -64,7 +66,7 @@ export const updateCard = async (req: Request, res: Response) => {
 
   res.json({
     _id: card._id,
-    boardId: card.boardId,
+    boardId: board.publicId,
     column: card.column,
     order: card.order,
     title: card.title,
@@ -75,33 +77,29 @@ export const updateCard = async (req: Request, res: Response) => {
 };
 
 export const deleteCard = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
+  const boardId = parseBoardPublicId(req.params.boardId);
   const cardId = requireObjectId(req.params.cardId, 'cardId');
+  const board = await findBoardByPublicId(boardId);
 
-  const deleted = await Card.findOneAndDelete({ _id: cardId, boardId }).lean();
+  const deleted = await Card.findOneAndDelete({ _id: cardId, boardId: board._id }).lean();
   if (!deleted) throw new HttpError(404, 'Card not found');
 
   res.status(204).send();
 };
 
 export const reorderCards = async (req: Request, res: Response) => {
-  const boardId = requireObjectId(req.params.boardId, 'boardId');
+  const boardId = parseBoardPublicId(req.params.boardId);
+  const board = await findBoardByPublicId(boardId);
 
-  const items = req.body?.items;
-  if (!Array.isArray(items)) throw new HttpError(400, 'items must be an array');
+  const data = reorderCardsSchema.parse(req.body);
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const cardId = requireObjectId(item?.cardId, 'cardId');
-    const column = item?.column;
-
-    if (column !== 'todo' && column !== 'in_progress' && column !== 'done') {
-      throw new HttpError(400, 'column must be todo, in_progress, or done');
-    }
+  for (let i = 0; i < data.items.length; i++) {
+    const item = data.items[i];
+    const cardId = requireObjectId(item.cardId, 'cardId');
 
     await Card.updateOne(
-      { _id: cardId, boardId },
-      { column, order: i },
+      { _id: cardId, boardId: board._id },
+      { column: item.column, order: i },
     );
   }
 

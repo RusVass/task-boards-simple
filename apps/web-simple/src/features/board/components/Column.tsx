@@ -1,9 +1,12 @@
-import { useState, type ChangeEvent, type DragEvent, type JSX } from 'react';
+import { useState, type DragEvent, type JSX } from 'react';
 import { useParams } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import type { ColumnId } from '../board.types';
 import { createCard, reorderCards as persistReorderCards } from '../board.actions';
 import { useBoardContext } from '../board.context';
 import { getCardsByColumn, reorderCards as reorderCardsLocal } from '../board.utils';
+import { cardSchema, normalizeString } from '../board.schemas';
 import { CardItem } from './CardItem';
 import s from './Column.module.scss';
 
@@ -20,39 +23,46 @@ export const Column = ({ column, title }: ColumnProps): JSX.Element => {
   const cards = getCardsByColumn(state.cards, column);
 
   const [isAdding, setIsAdding] = useState(false);
-  const [cardTitle, setCardTitle] = useState('');
-  const [cardDesc, setCardDesc] = useState('');
 
-  const handleTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setCardTitle(event.target.value);
-  };
+  const cardForm = useForm<CardFormValues>({
+    resolver: zodResolver(cardSchema),
+    mode: 'onSubmit',
+    defaultValues: { title: '', description: '' },
+  });
 
-  const handleDescChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setCardDesc(event.target.value);
-  };
+  const titleField = cardForm.register('title');
+  const descriptionField = cardForm.register('description');
 
   const handleStartAdd = () => {
-    setCardTitle('');
-    setCardDesc('');
+    cardForm.reset({ title: '', description: '' });
+    cardForm.clearErrors();
     setIsAdding(true);
   };
 
-  const handleAdd = async () => {
-    const trimmedTitle = cardTitle.trim();
-    if (!trimmedTitle) return;
+  const handleAddSubmit: SubmitHandler<CardFormValues> = async (values) => {
     if (!boardId) return;
 
-    await createCard(dispatch, boardId, { title: trimmedTitle, description: cardDesc.trim() });
-    setCardTitle('');
-    setCardDesc('');
+    const normalizedTitle = normalizeString(values.title);
+    const normalizedDescription = normalizeString(values.description ?? '');
+
+    await createCard(dispatch, boardId, {
+      title: normalizedTitle,
+      description: normalizedDescription,
+      column: 'todo',
+    });
+    cardForm.reset({ title: '', description: '' });
     setIsAdding(false);
   };
 
   const handleCancelAdd = () => {
-    setCardTitle('');
-    setCardDesc('');
+    cardForm.reset({ title: '', description: '' });
+    cardForm.clearErrors();
     setIsAdding(false);
   };
+
+  const handleAddFormSubmit = cardForm.handleSubmit(handleAddSubmit);
+  const titleError = cardForm.formState.errors.title?.message;
+  const descriptionError = cardForm.formState.errors.description?.message;
 
   const isTodoColumn = column === 'todo';
   const shouldShowAddTop = isTodoColumn && cards.length === 0;
@@ -61,23 +71,20 @@ export const Column = ({ column, title }: ColumnProps): JSX.Element => {
   const renderAddBlock = () => (
     <div className={s.addWrap}>
       {isAdding ? (
-        <div className={s.form}>
-          <input className={s.input} value={cardTitle} onChange={handleTitleChange} placeholder="Title" />
-          <textarea
-            className={s.textarea}
-            value={cardDesc}
-            onChange={handleDescChange}
-            placeholder="Description"
-          />
+        <form className={s.form} onSubmit={handleAddFormSubmit}>
+          <input {...titleField} className={s.input} placeholder="Title" />
+          {titleError ? <div className={s.error}>{titleError}</div> : null}
+          <textarea {...descriptionField} className={s.textarea} placeholder="Description" />
+          {descriptionError ? <div className={s.error}>{descriptionError}</div> : null}
           <div className={s.actions}>
-            <button className={s.button} type="button" onClick={handleAdd}>
+            <button className={s.button} type="submit">
               Save
             </button>
             <button className={`${s.button} ${s.buttonSecondary}`} type="button" onClick={handleCancelAdd}>
               Cancel
             </button>
           </div>
-        </div>
+        </form>
       ) : (
         <div className={s.form}>
           <button className={`${s.button} ${s.addButton}`} type="button" onClick={handleStartAdd} aria-label="Add card">
@@ -143,3 +150,8 @@ export const Column = ({ column, title }: ColumnProps): JSX.Element => {
     </section>
   );
 };
+
+interface CardFormValues {
+  title: string;
+  description?: string;
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
-import { boardsValidation, deleteBoard, getBoard } from './boards.controller';
+import { deleteBoard, getBoard } from './boards.controller';
 import { Board } from '../models/Board';
 import { Card } from '../models/Card';
 import { HttpError } from '../utils/httpError';
@@ -30,7 +30,7 @@ const createMockResponse = (): MockResponse => {
   };
 };
 
-type BoardLean = { _id: string; name: string };
+type BoardLean = { _id: string; publicId: string; name: string };
 type CardLean = {
   _id: string;
   boardId: string;
@@ -42,41 +42,42 @@ type CardLean = {
   updatedAt: Date;
 };
 
-const validBoardId = '507f1f77bcf86cd799439011';
+const validBoardId = 'a1b2c3d4e5f6a7b8c9d0e1f2';
+const boardObjectId = '507f1f77bcf86cd799439011';
 const createdAt = new Date('2024-01-01T00:00:00.000Z');
 const updatedAt = new Date('2024-01-01T00:00:00.000Z');
 
-let originalFindById: typeof Board.findById;
-let originalFindByIdAndDelete: typeof Board.findByIdAndDelete;
+let originalFindOne: typeof Board.findOne;
+let originalFindOneAndDelete: typeof Board.findOneAndDelete;
 let originalCardFind: typeof Card.find;
 let originalCardDeleteMany: typeof Card.deleteMany;
 
 beforeEach(() => {
-  originalFindById = Board.findById.bind(Board);
-  originalFindByIdAndDelete = Board.findByIdAndDelete.bind(Board);
+  originalFindOne = Board.findOne.bind(Board);
+  originalFindOneAndDelete = Board.findOneAndDelete.bind(Board);
   originalCardFind = Card.find.bind(Card);
   originalCardDeleteMany = Card.deleteMany.bind(Card);
 });
 
 afterEach(() => {
-  Board.findById = originalFindById;
-  Board.findByIdAndDelete = originalFindByIdAndDelete;
+  Board.findOne = originalFindOne;
+  Board.findOneAndDelete = originalFindOneAndDelete;
   Card.find = originalCardFind;
   Card.deleteMany = originalCardDeleteMany;
 });
 
-const mockFindById = (result: BoardLean | null) => {
+const mockFindOne = (result: BoardLean | null) => {
   const fn = () => ({
     lean: async () => result,
   });
-  Board.findById = fn as unknown as typeof Board.findById;
+  Board.findOne = fn as unknown as typeof Board.findOne;
 };
 
-const mockFindByIdAndDelete = (result: BoardLean | null) => {
+const mockFindOneAndDelete = (result: BoardLean | null) => {
   const fn = () => ({
     lean: async () => result,
   });
-  Board.findByIdAndDelete = fn as unknown as typeof Board.findByIdAndDelete;
+  Board.findOneAndDelete = fn as unknown as typeof Board.findOneAndDelete;
 };
 
 const mockCardFind = (
@@ -102,52 +103,6 @@ const mockCardDeleteMany = (onDelete: (filter: unknown) => void) => {
   Card.deleteMany = fn as unknown as typeof Card.deleteMany;
 };
 
-test('requireString trims and returns value', () => {
-  const value = boardsValidation.requireString('  Board  ', 'name');
-  assert.equal(value, 'Board');
-});
-
-test('requireString throws on non string', () => {
-  assert.throws(
-    () => boardsValidation.requireString(123, 'name'),
-    (err: unknown) => {
-      assert.ok(err instanceof HttpError);
-      assert.equal((err as HttpError).status, 400);
-      assert.equal((err as HttpError).message, 'name must be a string');
-      return true;
-    },
-  );
-});
-
-test('requireString throws on empty string', () => {
-  assert.throws(
-    () => boardsValidation.requireString('   ', 'name'),
-    (err: unknown) => {
-      assert.ok(err instanceof HttpError);
-      assert.equal((err as HttpError).status, 400);
-      assert.equal((err as HttpError).message, 'name is required');
-      return true;
-    },
-  );
-});
-
-test('requireObjectId throws on invalid id', () => {
-  assert.throws(
-    () => boardsValidation.requireObjectId('nope', 'boardId'),
-    (err: unknown) => {
-      assert.ok(err instanceof HttpError);
-      assert.equal((err as HttpError).status, 400);
-      assert.equal((err as HttpError).message, 'boardId is invalid');
-      return true;
-    },
-  );
-});
-
-test('requireObjectId accepts valid id', () => {
-  const value = boardsValidation.requireObjectId('507f1f77bcf86cd799439011', 'boardId');
-  assert.equal(value, '507f1f77bcf86cd799439011');
-});
-
 test('getBoard throws on invalid boardId', async () => {
   const req = { params: { boardId: 'bad' } };
   const res = createMockResponse();
@@ -164,7 +119,7 @@ test('getBoard throws on invalid boardId', async () => {
 });
 
 test('getBoard throws when board not found', async () => {
-  mockFindById(null);
+  mockFindOne(null);
 
   const req = { params: { boardId: validBoardId } };
   const res = createMockResponse();
@@ -181,12 +136,12 @@ test('getBoard throws when board not found', async () => {
 });
 
 test('getBoard returns board and cards and uses stable sort', async () => {
-  mockFindById({ _id: validBoardId, name: 'Board' });
+  mockFindOne({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
 
   const cards: CardLean[] = [
     {
       _id: '507f1f77bcf86cd799439012',
-      boardId: validBoardId,
+      boardId: boardObjectId,
       column: 'todo',
       order: 1,
       title: 'Card 1',
@@ -212,7 +167,7 @@ test('getBoard returns board and cards and uses stable sort', async () => {
     cards: [
       {
         _id: cards[0]._id,
-        boardId: cards[0].boardId,
+        boardId: validBoardId,
         column: cards[0].column,
         order: cards[0].order,
         title: cards[0].title,
@@ -225,7 +180,7 @@ test('getBoard returns board and cards and uses stable sort', async () => {
 });
 
 test('deleteBoard deletes board and cascades cards', async () => {
-  mockFindByIdAndDelete({ _id: validBoardId, name: 'Board' });
+  mockFindOneAndDelete({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
 
   let deleteFilter: unknown;
   mockCardDeleteMany((filter) => {
@@ -238,5 +193,5 @@ test('deleteBoard deletes board and cascades cards', async () => {
   await deleteBoard(req as never, res as never);
 
   assert.equal(res.statusCode, 204);
-  assert.deepEqual(deleteFilter, { boardId: validBoardId });
+  assert.deepEqual(deleteFilter, { boardId: boardObjectId });
 });

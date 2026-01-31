@@ -14,9 +14,12 @@ HTML5 drag and drop.
 Backend
 Express.js, TypeScript.
 MongoDB, Mongoose.
+Board IDs use a hashed publicId in API routes.
 
 Quality
 ESLint, Prettier.
+Vitest, React Testing Library.
+Husky pre-push hooks.
 
 ## Project structure
 
@@ -35,17 +38,18 @@ docker-compose.yml
 - Add, edit, and delete cards.
 - Drag and drop across columns and reordering within a column.
 - Anonymous access, no login.
+- Board ID is a 24 char hex hashed ID.
 
 ## Data model
 
 Board
-publicId string
+publicId string, 24 hex chars
 name string
 createdAt date
 updatedAt date
 
 Card
-boardId string
+boardId ObjectId in DB
 column todo or in_progress or done
 order number
 title string
@@ -56,6 +60,11 @@ updatedAt date
 Order
 Order starts at 0 in each column.
 Client sends items, backend normalizes the order.
+
+## Board ID format
+
+API routes expect `publicId` in the URL, 24 hex chars.
+Legacy Mongo ObjectId still works for existing boards, the API will assign a `publicId` on first access.
 
 ## Environment
 
@@ -82,6 +91,23 @@ npm run dev
 
 Open
 http://localhost:5173
+
+## Tests
+
+Web tests
+cd apps/web-simple
+npm test
+
+API tests
+cd apps/api-simple
+npm test
+
+## Git hooks
+
+Pre-push checks
+npm run lint
+npm run test -w apps/web-simple
+npm run test -w apps/api-simple
 
 ## Docker
 

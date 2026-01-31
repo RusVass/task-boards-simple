@@ -1,52 +1,70 @@
-import { useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, type SubmitHandler } from 'react-hook-form';
+import { z } from 'zod';
+import { boardIdSchema, boardNameSchema, normalizeString } from '../features/board/board.schemas';
 import { createBoard } from '../shared/api/endpoints';
 import s from './HomePage.module.scss';
 
 export const HomePage = (): JSX.Element => {
   const navigate = useNavigate();
 
-  const [createName, setCreateName] = useState('');
-  const [loadId, setLoadId] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const handleCreateNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setCreateName(event.target.value);
-  };
+  const createBoardFormSchema = z.object({ name: boardNameSchema });
+  const loadBoardFormSchema = z.object({ boardId: boardIdSchema });
 
-  const handleLoadIdChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setLoadId(event.target.value);
-  };
+  const createForm = useForm<CreateBoardFormValues>({
+    resolver: zodResolver(createBoardFormSchema),
+    mode: 'onSubmit',
+    defaultValues: { name: '' },
+  });
 
-  const handleCreate = async () => {
+  const loadForm = useForm<LoadBoardFormValues>({
+    resolver: zodResolver(loadBoardFormSchema),
+    mode: 'onSubmit',
+    defaultValues: { boardId: '' },
+  });
+
+  const createNameField = createForm.register('name');
+  const loadIdField = loadForm.register('boardId');
+
+  const handleCreateSubmit: SubmitHandler<CreateBoardFormValues> = async (values) => {
     setCreateError(null);
-
-    const validation = validateBoardName(createName);
-    if (validation.error) {
-      setCreateError(validation.error);
-      return;
-    }
+    const normalizedName = normalizeString(values.name);
 
     try {
-      const board = await createBoard(validation.trimmed);
+      const board = await createBoard(normalizedName);
+      createForm.reset({ name: '' });
       navigate(`/boards/${board.publicId}`);
     } catch {
       setCreateError('Create failed, check API server');
     }
   };
 
-  const handleLoad = () => {
+  const handleLoadSubmit: SubmitHandler<LoadBoardFormValues> = (values) => {
     setLoadError(null);
-
-    const validation = validateBoardId(loadId);
-    if (validation.error) {
-      setLoadError(validation.error);
-      return;
-    }
-
-    navigate(`/boards/${validation.trimmed}`);
+    const normalizedId = normalizeString(values.boardId);
+    navigate(`/boards/${normalizedId}`);
   };
+
+  const handleCreateFocus = () => {
+    createForm.clearErrors('name');
+    setCreateError(null);
+  };
+
+  const handleLoadFocus = () => {
+    loadForm.clearErrors('boardId');
+    setLoadError(null);
+  };
+
+  const handleCreateFormSubmit = createForm.handleSubmit(handleCreateSubmit);
+  const handleLoadFormSubmit = loadForm.handleSubmit(handleLoadSubmit);
+
+  const createValidationError = createForm.formState.errors.name?.message;
+  const loadValidationError = loadForm.formState.errors.boardId?.message;
 
   return (
     <div className="container">
@@ -55,35 +73,35 @@ export const HomePage = (): JSX.Element => {
       <div className={s.grid}>
         <section className={s.card}>
           <h2 className={s.cardTitle}>Create board</h2>
-          <div className={s.row}>
+          <form className={s.row} onSubmit={handleCreateFormSubmit}>
             <input
+              {...createNameField}
               className={s.input}
-              value={createName}
-              onChange={handleCreateNameChange}
-              onFocus={() => setCreateError(null)}
+              onFocus={handleCreateFocus}
               placeholder="Board name"
             />
-            <button className={s.button} type="button" onClick={handleCreate}>
+            <button className={s.button} type="submit">
               Create
             </button>
-          </div>
+          </form>
+          {createValidationError ? <div className={s.error}>{createValidationError}</div> : null}
           {createError ? <div className={s.error}>{createError}</div> : null}
         </section>
 
         <section className={s.card}>
           <h2 className={s.cardTitle}>Load board</h2>
-          <div className={s.row}>
+          <form className={s.row} onSubmit={handleLoadFormSubmit}>
             <input
+              {...loadIdField}
               className={s.input}
-              value={loadId}
-              onChange={handleLoadIdChange}
-              onFocus={() => setLoadError(null)}
+              onFocus={handleLoadFocus}
               placeholder="Paste board id"
             />
-            <button className={s.button} type="button" onClick={handleLoad}>
+            <button className={s.button} type="submit">
               Load
             </button>
-          </div>
+          </form>
+          {loadValidationError ? <div className={s.error}>{loadValidationError}</div> : null}
           {loadError ? <div className={s.error}>{loadError}</div> : null}
         </section>
       </div>
@@ -91,23 +109,10 @@ export const HomePage = (): JSX.Element => {
   );
 };
 
-export const validateBoardName = (value: string): ValidationResult => {
-  return validateRequired(value, 'Board name is required');
-};
+interface CreateBoardFormValues {
+  name: string;
+}
 
-export const validateBoardId = (value: string): ValidationResult => {
-  return validateRequired(value, 'Board id is required');
-};
-
-const validateRequired = (value: string, errorMessage: string): ValidationResult => {
-  const trimmed = value.trim();
-  return {
-    trimmed,
-    error: trimmed ? null : errorMessage,
-  };
-};
-
-interface ValidationResult {
-  trimmed: string;
-  error: string | null;
+interface LoadBoardFormValues {
+  boardId: string;
 }
