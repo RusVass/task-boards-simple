@@ -49,12 +49,14 @@ let originalBoardFindOne: typeof Board.findOne;
 let originalCardFindOne: typeof Card.findOne;
 let originalCreate: typeof Card.create;
 let originalUpdateOne: typeof Card.updateOne;
+let originalBulkWrite: typeof Card.bulkWrite;
 
 beforeEach(() => {
   originalBoardFindOne = Board.findOne.bind(Board);
   originalCardFindOne = Card.findOne.bind(Card);
   originalCreate = Card.create.bind(Card);
   originalUpdateOne = Card.updateOne.bind(Card);
+  originalBulkWrite = Card.bulkWrite.bind(Card);
 });
 
 afterEach(() => {
@@ -62,6 +64,7 @@ afterEach(() => {
   Card.findOne = originalCardFindOne;
   Card.create = originalCreate;
   Card.updateOne = originalUpdateOne;
+  Card.bulkWrite = originalBulkWrite;
 });
 
 const mockFindOneBoard = (result: BoardLean | null) => {
@@ -96,6 +99,21 @@ const mockUpdateOne = (calls: UpdateOneCall[]) => {
     return {};
   };
   Card.updateOne = fn as unknown as typeof Card.updateOne;
+};
+
+type BulkWriteUpdateOne = {
+  updateOne: {
+    filter: UpdateOneCall['filter'];
+    update: UpdateOneCall['update'];
+  };
+};
+
+const mockBulkWrite = (calls: BulkWriteUpdateOne[]) => {
+  const fn = async (ops: BulkWriteUpdateOne[]) => {
+    calls.push(...ops);
+    return {};
+  };
+  Card.bulkWrite = fn as unknown as typeof Card.bulkWrite;
 };
 
 test('createCard throws on invalid boardId', async () => {
@@ -223,8 +241,8 @@ test('reorderCards throws on invalid cardId', async () => {
 
 test('reorderCards updates cards in order', async () => {
   mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
-  const calls: UpdateOneCall[] = [];
-  mockUpdateOne(calls);
+  const calls: BulkWriteUpdateOne[] = [];
+  mockBulkWrite(calls);
 
   const req = {
     params: { boardId: validBoardId },
@@ -232,6 +250,7 @@ test('reorderCards updates cards in order', async () => {
       items: [
         { cardId: '507f1f77bcf86cd799439012', column: 'todo' },
         { cardId: '507f1f77bcf86cd799439013', column: 'done' },
+        { cardId: '507f1f77bcf86cd799439014', column: 'todo' },
       ],
     },
   };
@@ -241,13 +260,61 @@ test('reorderCards updates cards in order', async () => {
 
   assert.deepEqual(calls, [
     {
-      filter: { _id: '507f1f77bcf86cd799439012', boardId: boardObjectId },
-      update: { column: 'todo', order: 0 },
+      updateOne: {
+        filter: { _id: '507f1f77bcf86cd799439012', boardId: boardObjectId },
+        update: { column: 'todo', order: 0 },
+      },
     },
     {
-      filter: { _id: '507f1f77bcf86cd799439013', boardId: boardObjectId },
-      update: { column: 'done', order: 1 },
+      updateOne: {
+        filter: { _id: '507f1f77bcf86cd799439013', boardId: boardObjectId },
+        update: { column: 'done', order: 0 },
+      },
+    },
+    {
+      updateOne: {
+        filter: { _id: '507f1f77bcf86cd799439014', boardId: boardObjectId },
+        update: { column: 'todo', order: 1 },
+      },
     },
   ]);
+  assert.deepEqual(res.body, { status: 'ok' });
+});
+
+test('reorderCards throws on duplicate cardId', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
+  const req = {
+    params: { boardId: validBoardId },
+    body: {
+      items: [
+        { cardId: '507f1f77bcf86cd799439012', column: 'todo' },
+        { cardId: '507f1f77bcf86cd799439012', column: 'done' },
+      ],
+    },
+  };
+  const res = createMockResponse();
+
+  await assert.rejects(
+    () => reorderCards(req as never, res as never),
+    (err: unknown) => {
+      assert.ok(err instanceof HttpError);
+      assert.equal(err.status, 400);
+      assert.equal(err.message, 'cardId must be unique');
+      return true;
+    },
+  );
+});
+
+test('reorderCards returns ok on empty items', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
+  const calls: BulkWriteUpdateOne[] = [];
+  mockBulkWrite(calls);
+
+  const req = { params: { boardId: validBoardId }, body: { items: [] } };
+  const res = createMockResponse();
+
+  await reorderCards(req as never, res as never);
+
+  assert.deepEqual(calls, []);
   assert.deepEqual(res.body, { status: 'ok' });
 });

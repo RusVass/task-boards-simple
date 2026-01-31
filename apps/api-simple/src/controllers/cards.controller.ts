@@ -92,15 +92,28 @@ export const reorderCards = async (req: Request, res: Response) => {
   const board = await findBoardByPublicId(boardId);
 
   const data = reorderCardsSchema.parse(req.body);
-
-  for (let i = 0; i < data.items.length; i++) {
-    const item = data.items[i];
+  const seenCardIds = new Set<string>();
+  const columnOrder = new Map<typeof data.items[number]['column'], number>();
+  const ops = data.items.map((item) => {
     const cardId = requireObjectId(item.cardId, 'cardId');
+    if (seenCardIds.has(cardId)) {
+      throw new HttpError(400, 'cardId must be unique');
+    }
+    seenCardIds.add(cardId);
 
-    await Card.updateOne(
-      { _id: cardId, boardId: board._id },
-      { column: item.column, order: i },
-    );
+    const nextOrder = columnOrder.get(item.column) ?? 0;
+    columnOrder.set(item.column, nextOrder + 1);
+
+    return {
+      updateOne: {
+        filter: { _id: cardId, boardId: board._id },
+        update: { column: item.column, order: nextOrder },
+      },
+    };
+  });
+
+  if (ops.length > 0) {
+    await Card.bulkWrite(ops, { ordered: false });
   }
 
   res.json({ status: 'ok' });
