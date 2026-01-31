@@ -19,6 +19,7 @@ export interface BoardState {
   board: Board | null;
   cards: Card[];
   isLoading: boolean;
+  isNotFound: boolean;
   error: string | null;
 }
 
@@ -28,7 +29,7 @@ export type BoardAction =
       type: 'LOAD_BOARD_SUCCESS';
       payload: { boardId: string; board: Board; cards: Card[] };
     }
-  | { type: 'LOAD_BOARD_ERROR'; payload: { message: string } }
+  | { type: 'LOAD_BOARD_ERROR'; payload: { message: string; isNotFound?: boolean } }
   | { type: 'CARD_CREATED'; payload: { card: Card } }
   | { type: 'CARD_UPDATED'; payload: { card: Card } }
   | { type: 'CARD_DELETED'; payload: { cardId: string } }

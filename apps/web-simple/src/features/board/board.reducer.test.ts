@@ -43,6 +43,7 @@ describe('boardReducer', () => {
       board,
       cards,
       isLoading: true,
+      isNotFound: false,
       error: null,
     };
     const next = boardReducer(state, { type: 'LOAD_BOARD_ERROR', payload: { message: 'Fail' } });
@@ -50,7 +51,39 @@ describe('boardReducer', () => {
     expect(next.board).toBe(board);
     expect(next.cards).toBe(cards);
     expect(next.isLoading).toBe(false);
+    expect(next.isNotFound).toBe(false);
     expect(next.error).toBe('Fail');
+  });
+
+  it('clears board data on LOAD_BOARD_ERROR when not found', () => {
+    const state: BoardState = {
+      boardId: 'b1',
+      board,
+      cards,
+      isLoading: true,
+      isNotFound: false,
+      error: null,
+    };
+    const next = boardReducer(state, {
+      type: 'LOAD_BOARD_ERROR',
+      payload: { message: 'Board not found', isNotFound: true },
+    });
+
+    expect(next.boardId).toBeNull();
+    expect(next.board).toBeNull();
+    expect(next.cards).toEqual([]);
+    expect(next.isNotFound).toBe(true);
+    expect(next.isLoading).toBe(false);
+  });
+
+  it('resets not found flag on LOAD_BOARD_SUCCESS', () => {
+    const state: BoardState = { ...initialBoardState, isNotFound: true };
+    const next = boardReducer(state, {
+      type: 'LOAD_BOARD_SUCCESS',
+      payload: { boardId: 'b1', board, cards },
+    });
+
+    expect(next.isNotFound).toBe(false);
   });
 
   it('adds card and reorders by order', () => {

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { boardIdSchema, boardNameSchema, normalizeString } from '../features/board/board.schemas';
-import { createBoard } from '../shared/api/endpoints';
+import { createBoard, getBoard } from '../shared/api/endpoints';
 import s from './HomePage.module.scss';
 
 export const HomePage = (): JSX.Element => {
@@ -44,10 +44,15 @@ export const HomePage = (): JSX.Element => {
     }
   };
 
-  const handleLoadSubmit: SubmitHandler<LoadBoardFormValues> = (values) => {
+  const handleLoadSubmit: SubmitHandler<LoadBoardFormValues> = async (values) => {
     setLoadError(null);
     const normalizedId = normalizeString(values.boardId);
-    navigate(`/boards/${normalizedId}`);
+    try {
+      await getBoard(normalizedId);
+      navigate(`/boards/${normalizedId}`);
+    } catch (error: unknown) {
+      setLoadError(getLoadBoardErrorMessage(error));
+    }
   };
 
   const handleCreateFocus = () => {
@@ -108,6 +113,30 @@ export const HomePage = (): JSX.Element => {
     </div>
   );
 };
+
+export function getLoadBoardErrorMessage(error: unknown): string {
+  const fallback = 'Load failed, check API server';
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { status?: number; data?: { message?: string } } })
+      .response;
+    const message = response?.data?.message;
+    if (response?.status === 404) return message ?? 'Board not found';
+    return message ?? fallback;
+  }
+  return fallback;
+}
+
+export function validateBoardName(input: string): { trimmed: string; error: string | null } {
+  const trimmed = normalizeString(input);
+  if (!trimmed) return { trimmed, error: 'Board name is required' };
+  return { trimmed, error: null };
+}
+
+export function validateBoardId(input: string): { trimmed: string; error: string | null } {
+  const trimmed = normalizeString(input);
+  if (!trimmed) return { trimmed, error: 'Board id is required' };
+  return { trimmed, error: null };
+}
 
 interface CreateBoardFormValues {
   name: string;

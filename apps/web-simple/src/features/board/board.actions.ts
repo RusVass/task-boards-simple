@@ -5,6 +5,20 @@ import { COLUMNS } from './board.utils';
 
 type CardApiResponse = BoardResponse['cards'][number];
 
+const getErrorPayload = (
+  error: unknown,
+  fallbackMessage: string,
+): { message: string; isNotFound: boolean } => {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { status?: number; data?: { message?: string } } })
+      .response;
+    const message = response?.data?.message;
+    return { message: message ?? fallbackMessage, isNotFound: response?.status === 404 };
+  }
+
+  return { message: fallbackMessage, isNotFound: false };
+};
+
 const mapCard = (card: CardApiResponse): Card => ({
   id: String(card._id),
   boardId: String(card.boardId),
@@ -31,13 +45,9 @@ export const loadBoard = async (
       },
     });
   } catch (error: unknown) {
-    const message =
-      typeof error === 'object' && error !== null && 'response' in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
     dispatch({
       type: 'LOAD_BOARD_ERROR',
-      payload: { message: message ?? 'Failed to load board' },
+      payload: getErrorPayload(error, 'Failed to load board'),
     });
   }
 };
@@ -53,8 +63,8 @@ export const renameBoard = async (
   try {
     await http.patch(`/api/boards/${boardId}`, { name: nextName });
     await loadBoard(dispatch, boardId);
-  } catch {
-    dispatch({ type: 'LOAD_BOARD_ERROR', payload: { message: 'Rename failed' } });
+  } catch (error: unknown) {
+    dispatch({ type: 'LOAD_BOARD_ERROR', payload: getErrorPayload(error, 'Rename failed') });
   }
 };
 
@@ -84,13 +94,9 @@ export const createCard = async (
       payload: { card: mapCard(data) },
     });
   } catch (error: unknown) {
-    const message =
-      typeof error === 'object' && error !== null && 'response' in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
     dispatch({
       type: 'LOAD_BOARD_ERROR',
-      payload: { message: message ?? 'Create card failed' },
+      payload: getErrorPayload(error, 'Create card failed'),
     });
   }
 };
@@ -150,7 +156,7 @@ export const reorderCards = async (
 
   try {
     await http.put(`/api/boards/${boardId}/cards/reorder`, { items });
-  } catch {
-    dispatch({ type: 'LOAD_BOARD_ERROR', payload: { message: 'Reorder failed' } });
+  } catch (error: unknown) {
+    dispatch({ type: 'LOAD_BOARD_ERROR', payload: getErrorPayload(error, 'Reorder failed') });
   }
 };

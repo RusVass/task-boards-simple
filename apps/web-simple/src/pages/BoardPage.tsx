@@ -1,5 +1,5 @@
 import { useEffect, type JSX } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { BoardProvider, useBoardContext } from '../features/board/board.context';
 import { loadBoard } from '../features/board/board.actions';
 import { BoardHeader } from '../features/board/components/BoardHeader';
@@ -19,6 +19,16 @@ const BoardPageInner = (): JSX.Element => {
       <div className="container">
         <BoardHeader />
         <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (state.isNotFound) {
+    return (
+      <div className="container">
+        <h1>Board not found</h1>
+        <p>Board with ID {boardId} does not exist.</p>
+        <Link to="/">Go home</Link>
       </div>
     );
   }
