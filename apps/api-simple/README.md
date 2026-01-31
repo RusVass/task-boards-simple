@@ -1,42 +1,36 @@
-# Task Boards API Simple
+# Task Boards API
 
-Simple Express plus TypeScript plus MongoDB backend for Kanban boards.
-
-## Goals
-- Minimal, interview friendly code.
-- Clear routes and controllers.
-- No extra validation libraries.
+Express and MongoDB backend for task boards and cards.
 
 ## Tech
-- Node.js, Express
+- Node.js
+- Express
 - TypeScript
 - MongoDB, Mongoose
 
-## Project structure
-src
-- server.ts, app start
-- app.ts, express app and routes
-- db, mongodb connection
-- models, mongoose models
-- controllers, route handlers
-- routes, express routers
-- utils, small helpers
-
 ## Data model
 Board
-- _id, name, createdAt, updatedAt
+- publicId, 24 hex chars
+- name
+- createdAt
+- updatedAt
 
 Card
-- _id, boardId, column, order, title, description, createdAt, updatedAt
-
-Columns
-- todo
-- in_progress
-- done
+- boardId, ObjectId in DB
+- column, todo or in_progress or done
+- order
+- title
+- description
+- createdAt
+- updatedAt
 
 Order
-- order is a number
-- reorder endpoint sets order as array index
+- order starts at 0 per column
+- reorder endpoint sets order by array index
+
+## Board ID format
+- API routes expect publicId in the URL, 24 hex chars
+- legacy Mongo ObjectId still works for existing boards, the API assigns a publicId on first access
 
 ## Environment variables
 Create `.env` in `apps/api-simple`.
