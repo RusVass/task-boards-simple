@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import type { Card } from '../board.types';
-import { useBoardContext } from '../board.context';
+import { useBoardContext } from '../board.hooks';
 import { deleteCard, updateCard } from '../board.actions';
 import { cardSchema, normalizeString } from '../board.schemas';
 import s from './CardItem.module.scss';

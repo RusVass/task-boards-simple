@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getLoadBoardErrorMessage, validateBoardId, validateBoardName } from './HomePage';
+import { getLoadBoardErrorMessage, validateBoardId, validateBoardName } from './home-page.utils';
 
 describe('validateBoardName', () => {
   it('returns error for empty string', () => {

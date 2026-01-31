@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
-import { useBoardContext } from '../board.context';
+import { useBoardContext } from '../board.hooks';
 import { deleteBoard, renameBoard } from '../board.actions';
 import { boardNameSchema, normalizeString } from '../board.schemas';
 import s from './BoardHeader.module.scss';

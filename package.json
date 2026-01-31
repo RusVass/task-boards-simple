@@ -6,9 +6,9 @@
   ],
   "scripts": {
     "format": "prettier . --write",
-    "lint": "npm run lint -w apps/web && npm run lint -w apps/api",
-    "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w apps/api",
-    "test": "npm run test -w apps/web && npm run test -w apps/api",
+    "lint": "npm run lint -w apps/web-simple && npm run lint -w apps/api-simple",
+    "typecheck": "npm run typecheck -w apps/web-simple && npm run typecheck -w apps/api-simple",
+    "test": "npm run test -w apps/web-simple && npm run test -w apps/api-simple",
     "prepare": "husky"
   },
   "devDependencies": {

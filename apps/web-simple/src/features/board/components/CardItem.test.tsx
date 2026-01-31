@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { Card } from '../board.types'
-import { BoardProvider } from '../board.context'
+import { BoardProvider } from '../board.provider'
 import { CardItem } from './CardItem'
 
 const defaultCard: Card = {

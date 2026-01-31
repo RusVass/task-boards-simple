@@ -1,6 +1,7 @@
 import { useEffect, type JSX } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BoardProvider, useBoardContext } from '../features/board/board.context';
+import { useBoardContext } from '../features/board/board.hooks';
+import { BoardProvider } from '../features/board/board.provider';
 import { loadBoard } from '../features/board/board.actions';
 import { BoardHeader } from '../features/board/components/BoardHeader';
 import { BoardColumns } from '../features/board/components/BoardColumns';

@@ -25,6 +25,7 @@ export const createApp = () => {
   });
 
   app.use((err: unknown, _req: unknown, res: express.Response, _next: unknown) => {
+    void _next;
     const status = Number((err as { status?: number })?.status) || 500;
     const message = String((err as { message?: string })?.message || 'Server error');
     res.status(status).json({ message });

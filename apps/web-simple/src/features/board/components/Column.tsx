@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import type { ColumnId } from '../board.types';
 import { createCard, reorderCards as persistReorderCards } from '../board.actions';
-import { useBoardContext } from '../board.context';
+import { useBoardContext } from '../board.hooks';
 import { getCardsByColumn, reorderCards as reorderCardsLocal } from '../board.utils';
 import { cardSchema, normalizeString } from '../board.schemas';
 import { CardItem } from './CardItem';

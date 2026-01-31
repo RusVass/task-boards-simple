@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { BoardProvider } from '../board.context'
+import { BoardProvider } from '../board.provider'
 import { BoardColumns } from './BoardColumns'
 
 const renderBoardColumns = () =>
