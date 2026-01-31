@@ -93,14 +93,6 @@ type UpdateOneCall = {
   update: { column: 'todo' | 'in_progress' | 'done'; order: number };
 };
 
-const mockUpdateOne = (calls: UpdateOneCall[]) => {
-  const fn = async (filter: UpdateOneCall['filter'], update: UpdateOneCall['update']) => {
-    calls.push({ filter, update });
-    return {};
-  };
-  Card.updateOne = fn as unknown as typeof Card.updateOne;
-};
-
 type BulkWriteUpdateOne = {
   updateOne: {
     filter: UpdateOneCall['filter'];
