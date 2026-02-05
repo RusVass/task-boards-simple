@@ -6,6 +6,7 @@ import type { Card } from '../board.types';
 import { useBoardContext } from '../board.hooks';
 import { deleteCard, updateCard } from '../board.actions';
 import { cardSchema, normalizeString } from '../board.schemas';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import s from './CardItem.module.scss';
 
 interface CardItemProps {
@@ -13,6 +14,11 @@ interface CardItemProps {
   onDragStart: (cardId: string, event: DragEvent<HTMLDivElement>) => void;
   onDropOnCard: (cardId: string, event: DragEvent<HTMLDivElement>) => void;
   onDragOverCard: (event: DragEvent<HTMLDivElement>) => void;
+}
+
+interface CardFormValues {
+  title: string;
+  description?: string;
 }
 
 export const CardItem = ({
@@ -26,6 +32,7 @@ export const CardItem = ({
   const boardId = state.boardId ?? routeBoardId;
 
   const [isEdit, setIsEdit] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const editForm = useForm<CardFormValues>({
     resolver: zodResolver(cardSchema),
@@ -58,11 +65,18 @@ export const CardItem = ({
     setIsEdit(false);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteRequest = () => {
+    setIsDeleteOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleteOpen(false);
     if (!boardId) return;
-    const ok = window.confirm('Delete card?');
-    if (!ok) return;
     await deleteCard(dispatch, boardId, card.id);
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteOpen(false);
   };
 
   const handleDragStart = (event: DragEvent<HTMLDivElement>) => {
@@ -106,33 +120,40 @@ export const CardItem = ({
   }
 
   return (
-    <div
-      className={s.card}
-      draggable={!isEdit}
-      onDragStart={handleDragStart}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-    >
-      <div className={s.top}>
-        <div className={s.content}>
-          <h3 className={s.title}>{card.title}</h3>
-          {card.description ? <p className={s.desc}>{card.description}</p> : null}
-        </div>
+    <>
+      <div
+        className={s.card}
+        draggable={!isEdit}
+        onDragStart={handleDragStart}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+      >
+        <div className={s.top}>
+          <div className={s.content}>
+            <h3 className={s.title}>{card.title}</h3>
+            {card.description ? <p className={s.desc}>{card.description}</p> : null}
+          </div>
 
-        <div className={s.actions}>
-          <button className={s.iconBtn} type="button" onClick={handleEdit} title="Edit">
-            ✎
-          </button>
-          <button className={`${s.iconBtn} ${s.danger}`} type="button" onClick={handleDelete} title="Delete">
-            🗑
-          </button>
+          <div className={s.actions}>
+            <button className={s.iconBtn} type="button" onClick={handleEdit} title="Edit">
+              ✎
+            </button>
+            <button className={`${s.iconBtn} ${s.danger}`} type="button" onClick={handleDeleteRequest} title="Delete">
+              🗑
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        title="Delete card?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
+    </>
   );
 };
-
-interface CardFormValues {
-  title: string;
-  description?: string;
-}

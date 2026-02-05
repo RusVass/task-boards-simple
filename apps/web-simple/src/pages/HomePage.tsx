@@ -3,10 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
-import { boardIdSchema, boardNameSchema, normalizeString } from '../features/board/board.schemas';
+import { boardIdSchema, boardNameSchema } from '../features/board/board.schemas';
 import { createBoard, getBoard } from '../shared/api/endpoints';
-import { getLoadBoardErrorMessage } from './home-page.utils';
+import { getLoadBoardErrorMessage, validateBoardId, validateBoardName } from './home-page.utils';
 import s from './HomePage.module.scss';
+
+interface CreateBoardFormValues {
+  name: string;
+}
+
+interface LoadBoardFormValues {
+  boardId: string;
+}
 
 export const HomePage = (): JSX.Element => {
   const navigate = useNavigate();
@@ -34,14 +42,14 @@ export const HomePage = (): JSX.Element => {
 
   const handleCreateSubmit: SubmitHandler<CreateBoardFormValues> = async (values) => {
     setCreateError(null);
-    const normalizedName = normalizeString(values.name);
-    if (!normalizedName) {
-      setCreateError('Field is required');
+    const { trimmed, error } = validateBoardName(values.name);
+    if (error) {
+      setCreateError(error);
       return;
     }
 
     try {
-      const board = await createBoard(normalizedName);
+      const board = await createBoard(trimmed);
       createForm.reset({ name: '' });
       navigate(`/boards/${board.publicId}`);
     } catch {
@@ -56,14 +64,15 @@ export const HomePage = (): JSX.Element => {
 
   const handleLoadSubmit: SubmitHandler<LoadBoardFormValues> = async (values) => {
     setLoadError(null);
-    const normalizedId = normalizeString(values.boardId);
-    if (!normalizedId) {
-      setLoadError('Field is required');
+    const { trimmed, error } = validateBoardId(values.boardId);
+    if (error) {
+      setLoadError(error);
       return;
     }
+
     try {
-      await getBoard(normalizedId);
-    navigate(`/boards/${normalizedId}`);
+      await getBoard(trimmed);
+      navigate(`/boards/${trimmed}`);
     } catch (error: unknown) {
       setLoadError(getLoadBoardErrorMessage(error));
     }
@@ -148,11 +157,3 @@ export const HomePage = (): JSX.Element => {
     </div>
   );
 };
-
-interface CreateBoardFormValues {
-  name: string;
-}
-
-interface LoadBoardFormValues {
-  boardId: string;
-}

@@ -1,6 +1,10 @@
 import { z } from 'zod';
+import { CARD_STATUSES, DEFAULT_CARD_STATUS, isCardStatus } from '../constants/cards';
 
-export const cardColumnSchema = z.enum(['todo', 'in_progress', 'done']);
+export const cardColumnSchema = z.preprocess(
+  (value) => (isCardStatus(value) ? value : DEFAULT_CARD_STATUS),
+  z.enum(CARD_STATUSES),
+);
 
 export const createCardSchema = z.object({
   title: z.string().min(1, 'title is required'),

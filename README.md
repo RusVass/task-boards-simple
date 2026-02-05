@@ -1,6 +1,6 @@
 # Task Management Boards
 
-Test project for managing boards and cards without authentication.
+Lightweight Trello-style app for creating boards, managing cards, and drag-and-dropping work across columns. It is a full‑stack demo that focuses on clear UI interactions, validation, and simple API design (no auth).
 
 ## Tech stack
 
@@ -114,3 +114,8 @@ npm run test -w apps/api-simple
 Run Mongo plus api plus web.
 cd docker
 docker compose up --build
+
+## CI/CD
+
+CI runs lint + tests on every push/PR (see `.github/workflows/ci.yml`).
+CD builds and pushes Docker images to GitHub Container Registry on `main` (see `.github/workflows/cd.yml`).

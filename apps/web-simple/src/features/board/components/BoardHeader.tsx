@@ -6,7 +6,12 @@ import { z } from 'zod';
 import { useBoardContext } from '../board.hooks';
 import { deleteBoard, renameBoard } from '../board.actions';
 import { boardNameSchema, normalizeString } from '../board.schemas';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import s from './BoardHeader.module.scss';
+
+interface BoardNameFormValues {
+  name: string;
+}
 
 export const BoardHeader = (): JSX.Element => {
   const { boardId: routeBoardId = '' } = useParams();
@@ -15,6 +20,7 @@ export const BoardHeader = (): JSX.Element => {
   const boardId = state.boardId ?? routeBoardId;
 
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const renameFormSchema = z.object({ name: boardNameSchema });
@@ -61,10 +67,13 @@ export const BoardHeader = (): JSX.Element => {
     inputRef.current?.focus();
   }, [isRenaming]);
 
-  const handleDelete = async () => {
+  const handleDeleteRequest = () => {
+    setIsDeleteOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleteOpen(false);
     if (!boardId) return;
-    const ok = window.confirm('Delete board and all cards?');
-    if (!ok) return;
 
     try {
       await deleteBoard(boardId);
@@ -72,6 +81,10 @@ export const BoardHeader = (): JSX.Element => {
     } catch {
       dispatch({ type: 'LOAD_BOARD_ERROR', payload: { message: 'Delete failed' } });
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteOpen(false);
   };
 
   const handleRenameFormSubmit = renameForm.handleSubmit(handleRenameSubmit);
@@ -124,7 +137,7 @@ export const BoardHeader = (): JSX.Element => {
           <button
             className={`${s.iconButton} ${s.danger}`}
             type="button"
-            onClick={handleDelete}
+            onClick={handleDeleteRequest}
             aria-label="Delete"
           >
             🗑
@@ -133,10 +146,16 @@ export const BoardHeader = (): JSX.Element => {
       </div>
 
       {state.error ? <div className={s.error}>{state.error}</div> : null}
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        title="Delete board?"
+        description="This will remove the board and all cards permanently."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </>
   );
 };
-
-interface BoardNameFormValues {
-  name: string;
-}

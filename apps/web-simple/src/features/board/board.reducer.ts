@@ -1,4 +1,5 @@
-import type { BoardAction, BoardState, Card } from './board.types';
+import type { BoardAction, BoardState } from './board.types';
+import { sortCardsByOrder } from './board.utils';
 
 export const initialBoardState: BoardState = {
   boardId: null,
@@ -8,8 +9,6 @@ export const initialBoardState: BoardState = {
   isNotFound: false,
   error: null,
 };
-
-const sortCards = (cards: Card[]) => [...cards].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
 export const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
   switch (action.type) {
@@ -24,7 +23,7 @@ export const boardReducer = (state: BoardState, action: BoardAction): BoardState
         error: null,
         boardId: action.payload.boardId,
         board: action.payload.board,
-        cards: sortCards(action.payload.cards),
+        cards: sortCardsByOrder(action.payload.cards),
       };
 
     case 'LOAD_BOARD_ERROR': {
@@ -43,13 +42,22 @@ export const boardReducer = (state: BoardState, action: BoardAction): BoardState
       return { ...state, isLoading: false, isNotFound: false, error: action.payload.message };
     }
 
+    case 'BOARD_RENAMED':
+      return {
+        ...state,
+        isNotFound: false,
+        error: null,
+        boardId: action.payload.boardId,
+        board: state.board ? { ...state.board, name: action.payload.name } : state.board,
+      };
+
     case 'CARD_CREATED':
-      return { ...state, cards: sortCards([...state.cards, action.payload.card]) };
+      return { ...state, cards: sortCardsByOrder([...state.cards, action.payload.card]) };
 
     case 'CARD_UPDATED':
       return {
         ...state,
-        cards: sortCards(
+        cards: sortCardsByOrder(
           state.cards.map((c) => (c.id === action.payload.card.id ? action.payload.card : c)),
         ),
       };
@@ -58,14 +66,14 @@ export const boardReducer = (state: BoardState, action: BoardAction): BoardState
       return { ...state, cards: state.cards.filter((c) => c.id !== action.payload.cardId) };
 
     case 'CARDS_REORDERED':
-      return { ...state, cards: sortCards(action.payload.cards) };
+      return { ...state, cards: sortCardsByOrder(action.payload.cards) };
 
     case 'MOVE_CARD_OPTIMISTIC': {
       const { cardId, toColumn, toOrder } = action.payload;
       const cards = state.cards.map((c) =>
         c.id === cardId ? { ...c, column: toColumn, order: toOrder } : c,
       );
-      return { ...state, cards: sortCards(cards) };
+      return { ...state, cards: sortCardsByOrder(cards) };
     }
 
     default:

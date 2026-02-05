@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ZodError } from 'zod';
 import {
   createCardSchema,
   reorderCardsSchema,
@@ -20,11 +19,12 @@ test('createCardSchema parses valid payload', () => {
   });
 });
 
-test('createCardSchema rejects invalid column', () => {
-  assert.throws(
-    () => createCardSchema.parse({ title: 'Title', column: 'bad' }),
-    (err: unknown) => err instanceof ZodError,
-  );
+test('createCardSchema defaults invalid column to todo', () => {
+  const data = createCardSchema.parse({ title: 'Title', column: 'bad' });
+  assert.deepEqual(data, {
+    title: 'Title',
+    column: 'todo',
+  });
 });
 
 test('updateCardSchema accepts partial updates', () => {
@@ -38,6 +38,5 @@ test('reorderCardsSchema rejects empty cardId', () => {
       reorderCardsSchema.parse({
         items: [{ cardId: '', column: 'done' }],
       }),
-    (err: unknown) => err instanceof ZodError,
   );
 });

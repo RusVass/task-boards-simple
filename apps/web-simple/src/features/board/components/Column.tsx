@@ -15,6 +15,11 @@ interface ColumnProps {
   title: string;
 }
 
+interface CardFormValues {
+  title: string;
+  description?: string;
+}
+
 export const Column = ({ column, title }: ColumnProps): JSX.Element => {
   const { boardId: routeBoardId = '' } = useParams();
   const { state, dispatch } = useBoardContext();
@@ -110,6 +115,7 @@ export const Column = ({ column, title }: ColumnProps): JSX.Element => {
     event.stopPropagation();
     if (!draggedId || !boardId) return;
 
+    // Optimistically update the UI, then persist to the API.
     const nextCards = reorderCardsLocal(state.cards, draggedId, column, toIndex);
     dispatch({ type: 'CARDS_REORDERED', payload: { cards: nextCards } });
     void persistReorderCards(dispatch, boardId, nextCards);
@@ -150,8 +156,3 @@ export const Column = ({ column, title }: ColumnProps): JSX.Element => {
     </section>
   );
 };
-
-interface CardFormValues {
-  title: string;
-  description?: string;
-}

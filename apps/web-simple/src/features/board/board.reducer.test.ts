@@ -97,6 +97,17 @@ describe('boardReducer', () => {
     expect(next.cards.map((card) => card.id)).toEqual(['c3']);
   });
 
+  it('updates board name on BOARD_RENAMED', () => {
+    const state: BoardState = { ...initialBoardState, boardId: 'b1', board, cards };
+    const next = boardReducer(state, {
+      type: 'BOARD_RENAMED',
+      payload: { boardId: 'b1', name: 'Updated' },
+    });
+
+    expect(next.board?.name).toBe('Updated');
+    expect(next.error).toBeNull();
+  });
+
   it('updates card on CARD_UPDATED', () => {
     const state: BoardState = { ...initialBoardState, cards };
     const next = boardReducer(state, { type: 'CARD_UPDATED', payload: { card: updatedCard } });

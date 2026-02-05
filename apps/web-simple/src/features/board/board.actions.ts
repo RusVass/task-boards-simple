@@ -1,32 +1,25 @@
 import type { Dispatch } from 'react';
-import { http } from '../../shared/api/http';
-import type { BoardAction, BoardResponse, Card, ColumnId } from './board.types';
-import { COLUMNS } from './board.utils';
-
-type CardApiResponse = BoardResponse['cards'][number];
+import {
+  createCard as createCardApi,
+  deleteBoard as deleteBoardApi,
+  deleteCard as deleteCardApi,
+  getBoard as getBoardApi,
+  renameBoard as renameBoardApi,
+  reorderCards as reorderCardsApi,
+  updateCard as updateCardApi,
+} from '../../shared/api/endpoints';
+import { parseApiError } from '../../shared/api/api.utils';
+import type { BoardAction, Card, ColumnId } from './board.types';
+import { toUiBoardPayload, toUiCard } from './board.mappers';
+import { sortCardsByColumnThenOrder } from './board.utils';
 
 const getErrorPayload = (
   error: unknown,
   fallbackMessage: string,
 ): { message: string; isNotFound: boolean } => {
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const response = (error as { response?: { status?: number; data?: { message?: string } } })
-      .response;
-    const message = response?.data?.message;
-    return { message: message ?? fallbackMessage, isNotFound: response?.status === 404 };
-  }
-
-  return { message: fallbackMessage, isNotFound: false };
+  const { status, message } = parseApiError(error);
+  return { message: message ?? fallbackMessage, isNotFound: status === 404 };
 };
-
-const mapCard = (card: CardApiResponse): Card => ({
-  id: String(card._id),
-  boardId: String(card.boardId),
-  column: card.column,
-  order: card.order ?? 0,
-  title: card.title,
-  description: card.description,
-});
 
 export const loadBoard = async (
   dispatch: Dispatch<BoardAction>,
@@ -35,15 +28,8 @@ export const loadBoard = async (
   dispatch({ type: 'LOAD_BOARD_REQUEST' });
 
   try {
-    const { data } = await http.get<BoardResponse>(`/api/boards/${boardId}`);
-    dispatch({
-      type: 'LOAD_BOARD_SUCCESS',
-      payload: {
-        boardId: String(data.board.publicId),
-        board: { id: String(data.board.publicId), name: data.board.name },
-        cards: (data.cards ?? []).map(mapCard),
-      },
-    });
+    const data = await getBoardApi(boardId);
+    dispatch({ type: 'LOAD_BOARD_SUCCESS', payload: toUiBoardPayload(data) });
   } catch (error: unknown) {
     dispatch({
       type: 'LOAD_BOARD_ERROR',
@@ -61,21 +47,16 @@ export const renameBoard = async (
   if (!nextName) return;
 
   try {
-    await http.patch(`/api/boards/${boardId}`, { name: nextName });
-    await loadBoard(dispatch, boardId);
+    const updated = await renameBoardApi(boardId, nextName);
+    dispatch({ type: 'BOARD_RENAMED', payload: { boardId: updated.publicId, name: updated.name } });
   } catch (error: unknown) {
     dispatch({ type: 'LOAD_BOARD_ERROR', payload: getErrorPayload(error, 'Rename failed') });
   }
 };
 
 export const deleteBoard = async (boardId: string): Promise<void> => {
-  await http.delete(`/api/boards/${boardId}`);
+  await deleteBoardApi(boardId);
 };
-
-interface UpdateCardInput {
-  title: string;
-  description: string;
-}
 
 export const createCard = async (
   dispatch: Dispatch<BoardAction>,
@@ -83,15 +64,11 @@ export const createCard = async (
   input: { title: string; description: string; column: ColumnId },
 ): Promise<void> => {
   try {
-    const { data } = await http.post<CardApiResponse>(`/api/boards/${boardId}/cards`, {
-      title: input.title,
-      description: input.description,
-      column: input.column,
-    });
+    const card = await createCardApi(boardId, input);
 
     dispatch({
       type: 'CARD_CREATED',
-      payload: { card: mapCard(data) },
+      payload: { card: toUiCard(card) },
     });
   } catch (error: unknown) {
     dispatch({
@@ -105,16 +82,13 @@ export const updateCard = async (
   dispatch: Dispatch<BoardAction>,
   boardId: string,
   cardId: string,
-  data: UpdateCardInput,
+  data: { title: string; description: string },
 ): Promise<void> => {
-  const { data: card } = await http.patch<CardApiResponse>(
-    `/api/boards/${boardId}/cards/${cardId}`,
-    data,
-  );
+  const card = await updateCardApi(boardId, cardId, data);
 
   dispatch({
     type: 'CARD_UPDATED',
-    payload: { card: mapCard(card) },
+    payload: { card: toUiCard(card) },
   });
 };
 
@@ -123,7 +97,7 @@ export const deleteCard = async (
   boardId: string,
   cardId: string,
 ): Promise<void> => {
-  await http.delete(`/api/boards/${boardId}/cards/${cardId}`);
+  await deleteCardApi(boardId, cardId);
 
   dispatch({
     type: 'CARD_DELETED',
@@ -131,31 +105,19 @@ export const deleteCard = async (
   });
 };
 
-type ReorderItem = { cardId: string; column: ColumnId };
-
-const columnOrder = COLUMNS.reduce<Record<ColumnId, number>>((acc, col, index) => {
-  acc[col.key] = index;
-  return acc;
-}, {} as Record<ColumnId, number>);
-
-const sortByColumnThenOrder = (a: Card, b: Card) => {
-  const columnDiff = columnOrder[a.column] - columnOrder[b.column];
-  if (columnDiff !== 0) return columnDiff;
-  return a.order - b.order;
-};
-
 export const reorderCards = async (
   dispatch: Dispatch<BoardAction>,
   boardId: string,
   cards: Card[],
 ): Promise<void> => {
-  const items: ReorderItem[] = cards
-    .slice()
-    .sort(sortByColumnThenOrder)
-    .map((card) => ({ cardId: card.id, column: card.column }));
+  // Normalize order before persisting so the API receives a stable sequence.
+  const items = sortCardsByColumnThenOrder(cards).map((card) => ({
+    cardId: card.id,
+    column: card.column,
+  }));
 
   try {
-    await http.put(`/api/boards/${boardId}/cards/reorder`, { items });
+    await reorderCardsApi(boardId, { items });
   } catch (error: unknown) {
     dispatch({ type: 'LOAD_BOARD_ERROR', payload: getErrorPayload(error, 'Reorder failed') });
   }

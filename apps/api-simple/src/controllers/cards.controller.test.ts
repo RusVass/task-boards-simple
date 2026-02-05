@@ -57,6 +57,7 @@ beforeEach(() => {
   originalCreate = Card.create.bind(Card);
   originalUpdateOne = Card.updateOne.bind(Card);
   originalBulkWrite = Card.bulkWrite.bind(Card);
+  createPayload = null;
 });
 
 afterEach(() => {
@@ -83,8 +84,13 @@ const mockFindOne = (result: CardLean | null) => {
   Card.findOne = fn as unknown as typeof Card.findOne;
 };
 
+let createPayload: unknown = null;
+
 const mockCreate = (result: CreatedCard) => {
-  const fn = async () => result;
+  const fn = async (payload: unknown) => {
+    createPayload = payload;
+    return result;
+  };
   Card.create = fn as unknown as typeof Card.create;
 };
 
@@ -140,16 +146,29 @@ test('createCard throws when board not found', async () => {
   );
 });
 
-test('createCard throws on invalid column', async () => {
+test('createCard defaults invalid column to todo', async () => {
   mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
 
   const req = { params: { boardId: validBoardId }, body: { title: 'Card', column: 'nope' } };
   const res = createMockResponse();
 
-  await assert.rejects(
-    () => createCard(req as never, res as never),
-    (err: unknown) => err instanceof ZodError,
-  );
+  const createdCard: CreatedCard = {
+    _id: '507f1f77bcf86cd799439012',
+    boardId: boardObjectId,
+    column: 'todo',
+    order: 0,
+    title: 'Card',
+    description: '',
+    createdAt,
+    updatedAt,
+  };
+
+  mockCreate(createdCard);
+
+  await createCard(req as never, res as never);
+
+  const payload = createPayload as { column?: string } | null;
+  assert.equal(payload?.column, 'todo');
 });
 
 test('createCard returns created card payload', async () => {
@@ -198,18 +217,21 @@ test('reorderCards throws when items is not an array', async () => {
   );
 });
 
-test('reorderCards throws on invalid column', async () => {
+test('reorderCards defaults invalid column to todo', async () => {
   mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
+  const calls: BulkWriteUpdateOne[] = [];
+  mockBulkWrite(calls);
+
   const req = {
     params: { boardId: validBoardId },
     body: { items: [{ cardId: '507f1f77bcf86cd799439012', column: 'nope' }] },
   };
   const res = createMockResponse();
 
-  await assert.rejects(
-    () => reorderCards(req as never, res as never),
-    (err: unknown) => err instanceof ZodError,
-  );
+  await reorderCards(req as never, res as never);
+
+  assert.equal(calls[0]?.updateOne.update.column, 'todo');
+  assert.deepEqual(res.body, { status: 'ok' });
 });
 
 test('reorderCards throws on invalid cardId', async () => {

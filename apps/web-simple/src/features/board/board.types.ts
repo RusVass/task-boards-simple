@@ -30,6 +30,7 @@ export type BoardAction =
       payload: { boardId: string; board: Board; cards: Card[] };
     }
   | { type: 'LOAD_BOARD_ERROR'; payload: { message: string; isNotFound?: boolean } }
+  | { type: 'BOARD_RENAMED'; payload: { boardId: string; name: string } }
   | { type: 'CARD_CREATED'; payload: { card: Card } }
   | { type: 'CARD_UPDATED'; payload: { card: Card } }
   | { type: 'CARD_DELETED'; payload: { cardId: string } }
@@ -38,15 +39,3 @@ export type BoardAction =
       type: 'MOVE_CARD_OPTIMISTIC';
       payload: { cardId: string; toColumn: ColumnId; toOrder: number };
     };
-
-export interface BoardResponse {
-  board: { publicId: string; name: string };
-  cards: Array<{
-    _id: string;
-    boardId: string;
-    column: ColumnId;
-    order: number;
-    title: string;
-    description: string;
-  }>;
-}

@@ -1,15 +1,12 @@
 import { normalizeString } from '../features/board/board.schemas';
+import { parseApiError } from '../shared/api/api.utils';
 
 export function getLoadBoardErrorMessage(error: unknown): string {
   const fallback = 'Load failed, check API server';
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const response = (error as { response?: { status?: number; data?: { message?: string } } })
-      .response;
-    const message = response?.data?.message;
-    if (response?.status === 404) return message ?? 'Board not found';
-    return message ?? fallback;
-  }
-  return fallback;
+  const { status, message } = parseApiError(error);
+
+  if (status === 404) return message ?? 'Board not found';
+  return message ?? fallback;
 }
 
 export function validateBoardName(input: string): { trimmed: string; error: string | null } {

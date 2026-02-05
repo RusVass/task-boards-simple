@@ -1,4 +1,4 @@
-import { COLUMNS } from '../board.utils';
+import { COLUMNS } from '../board.constants';
 import { Column } from './Column';
 import s from './BoardColumns.module.scss';
 

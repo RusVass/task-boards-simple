@@ -1,13 +1,11 @@
 import type { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Card } from '../models/Card';
-import {
-  createCardSchema,
-  reorderCardsSchema,
-  updateCardSchema,
-} from '../validation/cards.schema';
+import { createCardSchema, reorderCardsSchema, updateCardSchema } from '../validation/cards.schema';
 import { HttpError } from '../utils/httpError';
 import { findBoardByPublicId, parseBoardPublicId } from '../utils/boardLookup';
+import { ensureFound } from '../utils/ensureFound';
+import { stripUndefined } from '../utils/updates';
 
 const requireObjectId = (value: string, field: string) => {
   if (!mongoose.isValidObjectId(value)) throw new HttpError(400, `${field} is invalid`);
@@ -52,9 +50,7 @@ export const updateCard = async (req: Request, res: Response) => {
   const board = await findBoardByPublicId(boardId);
 
   const data = updateCardSchema.parse(req.body);
-  const updateData: { title?: string; description?: string } = {};
-  if (data.title !== undefined) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description;
+  const updateData = stripUndefined(data);
 
   const card = await Card.findOneAndUpdate(
     { _id: cardId, boardId: board._id },
@@ -62,17 +58,17 @@ export const updateCard = async (req: Request, res: Response) => {
     { new: true },
   ).lean();
 
-  if (!card) throw new HttpError(404, 'Card not found');
+  const updated = ensureFound(card, 'Card not found');
 
   res.json({
-    _id: card._id,
+    _id: updated._id,
     boardId: board.publicId,
-    column: card.column,
-    order: card.order,
-    title: card.title,
-    description: card.description ?? '',
-    createdAt: card.createdAt,
-    updatedAt: card.updatedAt,
+    column: updated.column,
+    order: updated.order,
+    title: updated.title,
+    description: updated.description ?? '',
+    createdAt: updated.createdAt,
+    updatedAt: updated.updatedAt,
   });
 };
 
@@ -82,7 +78,7 @@ export const deleteCard = async (req: Request, res: Response) => {
   const board = await findBoardByPublicId(boardId);
 
   const deleted = await Card.findOneAndDelete({ _id: cardId, boardId: board._id }).lean();
-  if (!deleted) throw new HttpError(404, 'Card not found');
+  ensureFound(deleted, 'Card not found');
 
   res.status(204).send();
 };
