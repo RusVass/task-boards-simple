@@ -17,9 +17,11 @@ export const createBoard = async (req: Request, res: Response) => {
 
 export const getBoard = async (req: Request, res: Response) => {
   const boardId = parseBoardPublicId(req.params.boardId);
-  const board = await findBoardByPublicId(boardId);
-
-  const cards = await Card.find({ boardId: board._id }).sort(CARD_SORT).lean();
+  const boardPromise = findBoardByPublicId(boardId);
+  const cardsPromise = boardPromise.then((board) =>
+    Card.find({ boardId: board._id }).sort(CARD_SORT).lean(),
+  );
+  const [board, cards] = await Promise.all([boardPromise, cardsPromise]);
 
   res.json(serializeBoardDetails(board, cards));
 };
