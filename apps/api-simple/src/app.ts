@@ -1,4 +1,5 @@
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import cors from 'cors';
 import { boardsRouter } from './routes/boards.routes';
 import { cardsRouter } from './routes/cards.routes';
 import { HttpError } from './utils/httpError';
@@ -7,15 +8,7 @@ export const createApp = () => {
   const app = express();
 
   app.use(express.json());
-  app.use((_req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-  });
-  app.options(/.*/, (_req, res) => {
-    res.sendStatus(204);
-  });
+  app.use(cors());
 
   app.use('/api/boards', boardsRouter);
   app.use('/api/boards/:boardId/cards', cardsRouter);
@@ -24,10 +17,10 @@ export const createApp = () => {
     next(new HttpError(404, 'Route not found'));
   });
 
-  app.use((err: unknown, _req: unknown, res: express.Response, _next: unknown) => {
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     void _next;
-    const status = Number((err as { status?: number })?.status) || 500;
-    const message = String((err as { message?: string })?.message || 'Server error');
+    const status = err instanceof HttpError ? err.status : 500;
+    const message = err instanceof HttpError ? err.message : 'Server error';
     res.status(status).json({ message });
   });
 

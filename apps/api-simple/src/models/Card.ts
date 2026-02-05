@@ -20,4 +20,6 @@ const cardSchema = new Schema<CardDoc>(
   { timestamps: true },
 );
 
+cardSchema.index({ boardId: 1, column: 1, order: 1 }, { unique: true });
+
 export const Card = model('Card', cardSchema);

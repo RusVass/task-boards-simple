@@ -12,6 +12,15 @@ const requireObjectId = (value: string, field: string) => {
   return value;
 };
 
+const isDuplicateKeyError = (error: unknown): boolean => {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: number }).code === 11000
+  );
+};
+
 export const createCard = async (req: Request, res: Response) => {
   const boardId = parseBoardPublicId(req.params.boardId);
   const board = await findBoardByPublicId(boardId);
@@ -19,18 +28,38 @@ export const createCard = async (req: Request, res: Response) => {
   const data = createCardSchema.parse(req.body);
   const description = data.description ?? '';
 
-  const last = await Card.findOne({ boardId: board._id, column: data.column })
-    .sort({ order: -1 })
-    .lean();
-  const order = last ? last.order + 1 : 0;
+  const maxAttempts = 3;
+  let card: Awaited<ReturnType<typeof Card.create>> | null = null;
 
-  const card = await Card.create({
-    boardId: board._id,
-    column: data.column,
-    order,
-    title: data.title,
-    description,
-  });
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const last = await Card.findOne({ boardId: board._id, column: data.column })
+      .sort({ order: -1 })
+      .lean();
+    const order = last ? last.order + 1 : 0;
+
+    try {
+      card = await Card.create({
+        boardId: board._id,
+        column: data.column,
+        order,
+        title: data.title,
+        description,
+      });
+      break;
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        if (attempt === maxAttempts - 1) {
+          throw new HttpError(409, 'Card order conflict');
+        }
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (!card) {
+    throw new HttpError(500, 'Failed to create card');
+  }
 
   res.status(201).json({
     _id: card._id,

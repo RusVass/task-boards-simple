@@ -28,10 +28,12 @@ const ensureBoardPublicId = async (board: { _id: string; publicId?: string | nul
 };
 
 export const findBoardByPublicId = async (publicId: string) => {
-  const byPublicId = await Board.findOne({ publicId }).lean();
+  const [byPublicId, byObjectId] = await Promise.all([
+    Board.findOne({ publicId }).lean(),
+    Board.findById(publicId).lean(),
+  ]);
   if (byPublicId) return byPublicId;
 
-  const byObjectId = await Board.findById(publicId).lean();
   if (!byObjectId) throw new HttpError(404, 'Board not found');
 
   const ensuredPublicId = await ensureBoardPublicId(byObjectId);

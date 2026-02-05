@@ -94,6 +94,20 @@ const mockCreate = (result: CreatedCard) => {
   Card.create = fn as unknown as typeof Card.create;
 };
 
+const mockCreateSequence = (sequence: Array<{ result?: CreatedCard; error?: unknown }>) => {
+  let call = 0;
+  const fn = async (payload: unknown) => {
+    createPayload = payload;
+    const next = sequence[Math.min(call, sequence.length - 1)];
+    call += 1;
+    if (next?.error) throw next.error;
+    if (!next?.result) throw new Error('Missing mock result');
+    return next.result;
+  };
+  Card.create = fn as unknown as typeof Card.create;
+  return () => call;
+};
+
 type UpdateOneCall = {
   filter: { _id: string; boardId: string };
   update: { column: 'todo' | 'in_progress' | 'done'; order: number };
@@ -148,6 +162,7 @@ test('createCard throws when board not found', async () => {
 
 test('createCard defaults invalid column to todo', async () => {
   mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
+  mockFindOne(null);
 
   const req = { params: { boardId: validBoardId }, body: { title: 'Card', column: 'nope' } };
   const res = createMockResponse();
@@ -204,6 +219,36 @@ test('createCard returns created card payload', async () => {
     createdAt,
     updatedAt,
   });
+});
+
+test('createCard retries on duplicate key error', async () => {
+  mockFindOneBoard({ _id: boardObjectId, publicId: validBoardId, name: 'Board' });
+  mockFindOne({ order: 0 });
+
+  const createdCard: CreatedCard = {
+    _id: '507f1f77bcf86cd799439012',
+    boardId: boardObjectId,
+    column: 'todo',
+    order: 1,
+    title: 'Card',
+    description: '',
+    createdAt,
+    updatedAt,
+  };
+
+  const getCalls = mockCreateSequence([
+    { error: { code: 11000 } },
+    { result: createdCard },
+  ]);
+
+  const req = { params: { boardId: validBoardId }, body: { title: 'Card', column: 'todo' } };
+  const res = createMockResponse();
+
+  await createCard(req as never, res as never);
+
+  assert.equal(getCalls(), 2);
+  assert.equal(res.statusCode, 201);
+  assert.equal((res.body as CreatedCard)._id, createdCard._id);
 });
 
 test('reorderCards throws when items is not an array', async () => {
